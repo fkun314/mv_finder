@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}アップロード中…{% endblock %}
+{% block content %}
+  <h2>アップロード中…</h2>
+  <div class="progress" style="height: 25px;">
+    <div id="uploadBar" class="progress-bar" role="progressbar" style="width: 0%">0%</div>
+  </div>
+  <script>
+    // ページ読み込み後、1秒おきに進捗を問い合わせ
+    function poll() {
+      fetch("{{ url_for('upload_status') }}")
+        .then(r => r.json())
+        .then(data => {
+          const { total, done } = data;
+          const pct = total > 0 ? Math.round(done/total*100) : 0;
+          const bar = document.getElementById('uploadBar');
+          bar.style.width = pct + '%';
+          bar.textContent = pct + '%';
+
+          if (done < total) {
+            setTimeout(poll, 1000);
+          } else {
+            // 完了したら一覧へ戻る
+            window.location = "{{ url_for('index') }}";
+          }
+        });
+    }
+    document.addEventListener('DOMContentLoaded', poll);
+  </script>
+{% endblock %}

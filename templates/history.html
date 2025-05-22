@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}視聴履歴{% endblock %}
+{% block content %}
+  <h2>あなたの視聴履歴</h2>
+  <div class="row">
+    {% for h in history_items %}
+      <div class="col-md-3 mb-3">
+        <div class="card">
+          <a href="{{ url_for('video_page', video_id=h.id) }}">
+            <img src="{{ url_for('static', filename='thumbnails/' ~ h.thumb) }}"
+                 class="card-img-top" style="object-fit:cover; height:180px;" 
+                 alt="{{ h.filename }}">
+          </a>
+          <div class="card-body p-2">
+            <p class="card-text mb-1">{{ h.filename }}</p>
+            <p class="card-text mb-1">長さ: {{ h.duration|format_time }}</p>
+            <p class="card-text mb-1">視聴日時: {{ h.viewed_at }}</p>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+    {% if not history_items %}
+      <p>まだ視聴履歴がありません。</p>
+    {% endif %}
+  </div>
+{% endblock %}

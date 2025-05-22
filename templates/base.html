@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}動画サイト{% endblock %}</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+  <style>
+    .search-form { margin-bottom: 20px; }
+    /* サムネイルのコンテナを16:9固定に */
+    .thumbnail-container {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%;  /* 16:9 の比率 */
+      overflow: hidden;
+    }
+    .thumbnail-container img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;  /* アスペクト比を保ちながら切り取る */
+    }
+  </style>
+</head>
+<body>
+  <header class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center">
+      <h1><a href="{{ url_for('index') }}">動画サイト</a></h1>
+      <form class="form-inline search-form" method="GET" action="{{ url_for('index') }}">
+        <input type="text" class="form-control mr-2" name="q" placeholder="タイトル・タグで検索" value="{{ q if q is defined }}">
+        <!-- ソートの選択 -->
+        <select name="sort" class="form-control mr-2">
+          <option value="">ソート</option>
+          <option value="views" {% if sort=='views' %}selected{% endif %}>再生回数</option>
+          <option value="date" {% if sort=='date' %}selected{% endif %}>作成日</option>
+          <option value="duration" {% if sort=='duration' %}selected{% endif %}>動画の長さ</option>
+          <option value="filename" {% if sort=='filename' %}selected{% endif %}>ファイル名</option>
+        </select>
+        <select name="order" class="form-control mr-2">
+          <option value="desc" {% if order=='desc' %}selected{% endif %}>降順</option>
+          <option value="asc" {% if order=='asc' %}selected{% endif %}>昇順</option>
+        </select>
+        <select class="form-control mr-2" name="directory">
+          {% for d, label in directories %}
+            <option value="{{ d }}" {% if directory_filter == d %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-check mr-2">
+          <input class="form-check-input" type="checkbox" name="favorite" value="1" id="favoriteFilter" {% if request.args.get('favorite') %}checked{% endif %}>
+          <label class="form-check-label" for="favoriteFilter">
+            お気に入りのみ
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary">検索</button>
+      </form>
+      <div>
+        {% if current_user.is_authenticated %}
+          <span class="mr-2"> {{ current_user.id }}</span>
+          <a class="btn btn-primary" href="{{ url_for('history') }}">視聴履歴</a>
+          <a href="{{ url_for('trash') }}" class="btn btn-secondary">ゴミ箱</a>
+          <a href="{{ url_for('logout') }}" class="btn btn-danger">ログアウト</a>
+        {% else %}
+          <a href="{{ url_for('login') }}" class="btn btn-primary">ログイン</a>
+        {% endif %}
+      </div>
+    </div>
+    <hr>
+  </header>
+
+  <main class="container">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="alert alert-info">
+          {% for message in messages %}
+            <div>{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

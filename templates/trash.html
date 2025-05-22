@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}ゴミ箱{% endblock %}
+{% block content %}
+<h2>ゴミ箱 (D:\remove)</h2>
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>名前</th>
+      <th>タイプ</th>
+      <th>サムネイル</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in trash_items %}
+      <tr>
+        <td>{{ item.name }}</td>
+        <td>{{ "ディレクトリ" if item.is_dir else "ファイル" }}</td>
+        <td>
+          {% if not item.is_dir and item.name.lower().endswith(('.mp4', '.avi', '.mkv')) %}
+            {% set thumb = item.name.split('.')[0] + ".jpg" %}
+            <img src="{{ url_for('static', filename='thumbnails/' ~ thumb) }}" alt="{{ item.name }}" style="max-width: 150px;">
+          {% else %}
+            -
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

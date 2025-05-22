@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}動画アップロード{% endblock %}
+{% block content %}
+<h2>動画アップロード</h2>
+
+<form id="uploadForm" method="POST" action="{{ url_for('start_upload') }}" enctype="multipart/form-data">
+  <div class="form-group">
+    <label for="directory">アップロード先ディレクトリ</label>
+    <select class="form-control" id="directory" name="directory">
+      {% for key, path in upload_dirs.items() %}
+        <option value="{{ key }}">{{ key }}/</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="videos">動画ファイルを選択</label>
+    <input type="file" class="form-control-file" id="videos" name="videos" multiple accept="video/*">
+  </div>
+  <div class="progress" style="height: 25px; display: none;" id="uploadProgressContainer">
+    <div class="progress-bar" id="uploadProgressBar" role="progressbar" style="width: 0%;">0%</div>
+  </div>
+  <button type="submit" class="btn btn-primary">アップロード開始</button>
+</form>
+<script>
+document.getElementById('uploadForm').addEventListener('submit', () => {
+</script>
+{% endblock %}

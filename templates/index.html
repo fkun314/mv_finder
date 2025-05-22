@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}動画一覧{% endblock %}
+{% block content %}
+<h2>動画一覧</h2>
+
+<!-- 一括処理中のオーバーレイ（初期状態は非表示） -->
+<div id="processingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color: rgba(0,0,0,0.5); z-index:9999; text-align:center; padding-top:20%;">
+  <h2 style="color:#fff;">処理を開始しています。しばらくお待ちください…</h2>
+</div>
+
+<!-- 動画一覧フォーム（チェックボックスを含む） -->
+<form method="POST" action="{{ url_for('bulk_move') }}" onsubmit="return confirmBulkMove();">
+  <div class="row">
+    {% for video in videos %}
+      <div class="col-md-3 mb-2">
+        <div class="card">
+          <!-- サムネイル表示（16:9固定例） -->
+          <div class="thumbnail-container" style="position: relative; width: 100%; padding-top: 56.25%; overflow: hidden;">
+            <a href="{{ url_for('video_page', video_id=video.id) }}">
+              <img src="{{ url_for('static', filename='thumbnails/' ~ video.thumb) }}" alt="{{ video.filename }}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
+            </a>
+            <div class="duration-overlay" style="position: absolute; bottom: 5px; right: 5px; background-color: rgba(0,0,0,0.7); color: #fff; padding: 2px 4px; font-size: 0.8em; border-radius: 3px;">
+              {{ video.duration | format_time }}
+            </div>
+          </div>
+          <div class="card-body p-2">
+            <!-- チェックボックス -->
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" name="selected_videos" value="{{ video.id }}" id="videoCheck{{ loop.index }}">
+              <label class="form-check-label" for="videoCheck{{ loop.index }}">{{ video.filename | truncate_title }}</label>
+            </div>
+            <p class="card-text mb-1" style="font-size: 0.9rem;">再生回数: {{ video.views }}</p>
+            <p class="card-text mb-1" style="font-size: 0.9rem;">タグ:
+              {% for tag in video.tags %}
+                <span class="badge badge-info">{{ tag }}</span>
+              {% endfor %}
+            </p>
+            <form method="POST" action="{{ url_for('toggle_favorite', video_id=video.id) }}" style="display: inline;">
+              <button type="submit" class="btn btn-sm btn-warning">
+                {% if video.favorite %}
+                  ★ お気に入り解除
+                {% else %}
+                  ☆ お気に入り追加
+                {% endif %}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- 一括移動／コピー用フォームコントロール -->
+  <div class="form-group">
+    <label for="bulk_destination">一括移動先:</label>
+    <select name="destination" class="form-control" id="bulk_destination">
+      <option value="doc">doc/</option>
+      <option value="me">me/</option>
+      <option value="doc/fc">doc/fc/</option>
+      <option value="doc/li">doc/li/</option>
+      <option value="me/fc">me/fc/</option>
+      <option value="me/li">me/li/</option>
+      <option value="as">as/</option>
+      <option value="iv">iv/</option>
+    </select>
+  </div>
+  <div class="form-group form-check">
+    <input type="checkbox" class="form-check-input" id="copy_mode" name="copy_mode">
+    <label class="form-check-label" for="copy_mode">コピー（元のファイルを残す）</label>
+  </div>
+  <button type="submit" class="btn btn-primary">一括処理実行</button>
+</form>
+
+<!-- ページネーション -->
+<nav aria-label="Page navigation">
+  <ul class="pagination justify-content-center">
+    {# Previousボタン #}
+    {% if page > 1 %}
+      <li class="page-item">
+        <a class="page-link" href="{{ url_for('index', page=page-1, q=q, sort=sort, order=order, directory=directory_filter, favorite=request.args.get('favorite')) }}">Previous</a>
+      </li>
+    {% else %}
+      <li class="page-item disabled"><span class="page-link">Previous</span></li>
+    {% endif %}
+
+    {# 常に1ページ目を表示 #}
+    <li class="page-item {% if page == 1 %}active{% endif %}">
+      <a class="page-link" href="{{ url_for('index', page=1, q=q, sort=sort, order=order, directory=directory_filter, favorite=request.args.get('favorite')) }}">1</a>
+    </li>
+
+    {# 現在のページが4以上なら、1ページ目と2ページ目の間に省略表示 #}
+    {% if page > 4 %}
+      <li class="page-item disabled"><span class="page-link">...</span></li>
+    {% endif %}
+
+    {# 現在ページの前後2ページを表示（2～最終ページ-1の範囲内） #}
+    {% for p in range(max(2, page-2), min(total_pages, page+3)) %}
+      <li class="page-item {% if p == page %}active{% endif %}">
+        <a class="page-link" href="{{ url_for('index', page=p, q=q, sort=sort, order=order, directory=directory_filter, favorite=request.args.get('favorite')) }}">{{ p }}</a>
+      </li>
+    {% endfor %}
+
+    {# 現在ページがtotal_pages-3以下なら、末尾との間に省略表示 #}
+    {% if page < total_pages - 3 %}
+      <li class="page-item disabled"><span class="page-link">...</span></li>
+    {% endif %}
+
+    {# 最終ページを常に表示（total_pages > 1 の場合） #}
+    {% if total_pages > 1 %}
+      <li class="page-item {% if page == total_pages %}active{% endif %}">
+        <a class="page-link" href="{{ url_for('index', page=total_pages, q=q, sort=sort, order=order, directory=directory_filter, favorite=request.args.get('favorite')) }}">{{ total_pages }}</a>
+      </li>
+    {% endif %}
+
+    {# Nextボタン #}
+    {% if page < total_pages %}
+      <li class="page-item">
+        <a class="page-link" href="{{ url_for('index', page=page+1, q=q, sort=sort, order=order, directory=directory_filter, favorite=request.args.get('favorite')) }}">Next</a>
+      </li>
+    {% else %}
+      <li class="page-item disabled"><span class="page-link">Next</span></li>
+    {% endif %}
+  </ul>
+</nav>
+
+
+
+<script>
+  function confirmBulkMove() {
+    var checkboxes = document.querySelectorAll('input[name="selected_videos"]:checked');
+    if (checkboxes.length === 0) {
+      alert("一括処理する動画を選択してください。");
+      return false;
+    }
+    if (!confirm("選択された動画を処理します。よろしいですか？")) {
+      return false;
+    }
+    // オーバーレイ表示
+    document.getElementById('processingOverlay').style.display = 'block';
+    return true;
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ video_file }} - 再生</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+  <style>
+    .scene-thumb {
+      cursor: pointer;
+      margin: 5px;
+      max-width: 120px;
+    }
+  </style>
+</head>
+<body>
+<div class="container mt-4">
+  <h1>{{ video_file }}</h1>
+  <video id="videoPlayer" width="100%" height="auto" controls autoplay>
+    <source src="{{ url_for('video', hash_value=video_hash) }}" type="video/mp4">
+    ブラウザがvideoタグに対応していません。
+  </video>
+  
+  <h3 class="mt-4">シーン一覧（クリックでジャンプ）</h3>
+  <div class="d-flex flex-wrap">
+    {% for scene in scenes %}
+      <img class="scene-thumb" src="{{ url_for('static', filename='scenes/' ~ scene.thumb) }}" 
+           alt="Scene {{ loop.index }}" 
+           onclick="jumpTo({{ scene.time }})">
+    {% endfor %}
+  </div>
+  
+  <div class="mt-3">
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">戻る</a>
+  </div>
+</div>
+
+<script>
+  function jumpTo(time) {
+    var video = document.getElementById('videoPlayer');
+    video.currentTime = time;
+    video.play();
+  }
+</script>
+</body>
+</html>

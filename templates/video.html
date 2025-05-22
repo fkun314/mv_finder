@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}{{ video.filename }} - 再生{% endblock %}
+{% block content %}
+<div class="row">
+  <!-- メインコンテンツ：col-md-10 -->
+  <div class="col-md-10">
+    <!-- タイトルはそのままフル表示 -->
+    <h2 style="margin-bottom: 0.5rem;">{{ video.filename }}</h2>
+    <p style="margin-bottom: 0.5rem;">再生回数: {{ video.views }}</p>
+    <!-- お気に入り切替ボタン -->
+    <form method="POST" action="{{ url_for('toggle_favorite', video_id=video.id) }}" style="display: inline;">
+      <button type="submit" class="btn btn-sm btn-warning">
+        {% if video.favorite %}
+          ★ お気に入り解除
+        {% else %}
+          ☆ お気に入り追加
+        {% endif %}
+      </button>
+    </form>
+    <!-- 削除ボタン -->
+    <form method="POST" action="{{ url_for('delete_video', video_id=video.id) }}" style="display: inline; margin-left: 10px;">
+      <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('本当に削除しますか？')">削除</button>
+    </form>
+    <!-- 移動用フォーム -->
+    <form method="POST" action="{{ url_for('move_video', video_id=video.id) }}" style="display: inline; margin-left: 10px;">
+      <select name="destination" class="form-control form-control-sm" style="display: inline-block; width: auto;">
+        <option value="doc">doc/</option>
+        <option value="me">me/</option>
+        <option value="doc/fc">doc/fc/</option>
+        <option value="doc/li">doc/li/</option>
+        <option value="me/fc">me/fc/</option>
+        <option value="me/li">me/li/</option>
+        <option value="as">as/</option>
+        <option value="iv">iv/</option>
+      </select>
+      <button type="submit" class="btn btn-sm btn-info" onclick="return confirm('指定のディレクトリに移動しますか？')">移動</button>
+    </form>
+
+    {% if "431960" in video.directory %}
+      <form method="POST" action="{{ url_for('delete_directory', video_id=video.id) }}" onsubmit="return confirm('本当にこのディレクトリ全体を削除しますか？');" style="display:inline;">
+        <button type="submit" class="btn btn-sm btn-danger">このディレクトリを丸ごと削除</button>
+      </form>
+    {% endif %}
+    
+    <video id="videoPlayer" width="100%" height="auto" controls autoplay>
+      <source src="{{ url_for('serve_video', video_id=video.id) }}" type="video/mp4">
+      ブラウザがvideoタグに対応していません。
+    </video>
+    
+    <h4 class="mt-4">シーン一覧（クリックでジャンプ）</h4>
+    <div class="row">
+      {% for scene in scenes %}
+        <div class="col-3 mb-2">
+          <img class="img-fluid scene-thumb" src="{{ url_for('static', filename='scenes/' ~ scene.thumb) }}" 
+               alt="Scene {{ loop.index }}" style="cursor:pointer" onclick="jumpTo({{ scene.time }})">
+          <p class="text-center small mt-1">{{ scene.time | format_time }}</p>
+        </div>
+      {% endfor %}
+    </div>
+    <h4 class="mt-4">タグ</h4>
+    <div>
+      {% for tag in tags %}
+        <span class="badge badge-info">{{ tag }}</span>
+      {% endfor %}
+    </div>
+    {% if session.logged_in %}
+    <form action="{{ url_for('add_tag') }}" method="POST" class="mt-3">
+      <input type="hidden" name="video_id" value="{{ video.id }}">
+      <div class="form-group">
+        <label for="tag">タグを追加:</label>
+        <input type="text" class="form-control" id="tag" name="tag">
+      </div>
+      <button type="submit" class="btn btn-primary">追加</button>
+    </form>
+    {% endif %}
+    <a href="{{ url_for('index') }}" class="btn btn-secondary mt-3">戻る</a>
+  </div>
+  <!-- サイドバー：col-md-2（ランダム最大12件） -->
+  <div class="col-md-2">
+    <h4>他の動画</h4>
+    {% for v in sidebar_videos %}
+      <div class="card mb-2">
+        <a href="{{ url_for('video_page', video_id=v.id) }}">
+          <img src="{{ url_for('static', filename='thumbnails/' ~ v.thumb) }}" class="card-img-top" alt="{{ v.filename }}">
+        </a>
+        <div class="card-body p-2">
+          <p class="card-text mb-1" style="font-size: 0.9rem;">{{ v.filename | truncate_title }}</p>
+          <p class="card-text mb-0" style="font-size: 0.8rem;">再生回数: {{ v.views }}</p>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+  function jumpTo(time) {
+    var video = document.getElementById('videoPlayer');
+    video.currentTime = time;
+    video.play();
+  }
+</script>
+{% endblock %}
