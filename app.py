@@ -325,25 +325,25 @@ def index():
     # フィルター処理（ファイル名・ディレクトリなど）
     q = request.args.get("q", "").strip().lower()
     directory_filter = request.args.get("directory", "all")
-    sort_by = request.args.get("sort", "")
-    order = request.args.get("order", "desc")  # "asc" or "desc"
-    favorite_filter = request.args.get("favorite")
+    # デフォルト sort_by="date"（created）、order="desc"
+    sort_by = request.args.get("sort") or "date"
+    order = request.args.get("order") or "desc"  # "asc" or "desc"
 
     videos = all_videos
-    if directory_filter != "all":
-        videos = [v for v in videos if v["directory"].startswith(directory_filter)]
-    if q:
-        videos = [v for v in videos if q in v["filename"].lower()]
-    if favorite_filter:
-        # お気に入り情報は後で付与するため、ここでは一旦スキップ（または適宜処理）
-        videos = [v for v in videos if get_video_data(v["id"]).get("favorite")]
+    # if directory_filter != "all":
+    #     videos = [v for v in videos if v["directory"].startswith(directory_filter)]
+    # if q:
+    #     videos = [v for v in videos if q in v["filename"].lower()]
+    # if favorite_filter:
+    #     # お気に入り情報は後で付与するため、ここでは一旦スキップ（または適宜処理）
+    #     videos = [v for v in videos if get_video_data(v["id"]).get("favorite")]
 
     # ソート条件の適用
-    reverse = True if order=="desc" else False
+    reverse = (order == "desc")
     if sort_by == "views":
         videos.sort(key=lambda v: get_video_data(v["id"]).get("views", 0), reverse=reverse)
     elif sort_by == "date":
-        videos.sort(key=lambda v: v["created"], reverse=reverse)
+         videos.sort(key=lambda v: v["created"], reverse=reverse)
     elif sort_by == "duration":
         videos.sort(key=lambda v: v["duration"], reverse=reverse)
     elif sort_by == "filename":

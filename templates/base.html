@@ -57,6 +57,7 @@
       <div>
         {% if current_user.is_authenticated %}
           <span class="mr-2"> {{ current_user.id }}</span>
+          <a class="btn btn-primary" href="{{ url_for('upload_page') }}">アップロード</a>
           <a class="btn btn-primary" href="{{ url_for('history') }}">視聴履歴</a>
           <a href="{{ url_for('trash') }}" class="btn btn-secondary">ゴミ箱</a>
           <a href="{{ url_for('logout') }}" class="btn btn-danger">ログアウト</a>
