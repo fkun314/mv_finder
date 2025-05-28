@@ -1,4 +1,5 @@
 local.sqlite
+.DS_Store
 
 static/
 .idea/

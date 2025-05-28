@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}アップロード詳細{% endblock %}
+{% block content %}
+<h2>アップロード詳細</h2>
+<ul>
+  <li>バッチID: {{ batch.batch_id }}</li>
+  <li>日時: {{ batch.timestamp | datetimeformat }}</li>
+  <li>ユーザー: {{ batch.username }}</li>
+  <li>ディレクトリ: {{ batch.directory }}</li>
+  <li>件数: {{ batch.count }}</li>
+</ul>
+
+<h3>ファイル一覧</h3>
+<ul>
+  {% for f in files %}
+    <li>{{ f.filename }}</li>
+  {% endfor %}
+</ul>
+{% endblock %}

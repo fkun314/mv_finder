@@ -15,16 +15,24 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 import threading
 from datetime import datetime
 from flask import jsonify
-
-
-
+import time
+from uuid import uuid4
+from werkzeug.utils import secure_filename
+import logging
+from logging.handlers import RotatingFileHandler
 from apscheduler.schedulers.background import BackgroundScheduler
+import re
 
 DB_LOCK = threading.Lock()
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"  # 本番では十分に複雑な値にしてください
 app.jinja_env.globals.update(max=max, min=min)
+
+@app.template_filter('datetimeformat')
+def datetimeformat(value, fmt='%Y-%m-%d %H:%M:%S'):
+    # view_history の viewed_at 等をフォーマットするためのフィルター
+    return datetime.fromtimestamp(value).strftime(fmt)
 
 # 設定：複数の動画ディレクトリ+
 VIDEO_DIRS = [
@@ -48,7 +56,8 @@ ALLOWED_IPS = [
     '127.0.0.1',
     '192.168.2.100',
     '192.168.2.191', # i9-7
-    '192.168.2.188', # ipad
+    '192.168.2.190', # ipad
+    '192.168.2.171',
 ]
 
 # グローバル変数で進捗を保持
@@ -124,6 +133,23 @@ def init_db():
             viewed_at REAL NOT NULL
         )
     ''')
+    # アップロードバッチとファイル一覧
+    conn.execute('''
+          CREATE TABLE IF NOT EXISTS upload_batches (
+            batch_id TEXT PRIMARY KEY,
+            username TEXT NOT NULL,
+            directory TEXT NOT NULL,
+            count INTEGER NOT NULL,
+            timestamp REAL NOT NULL
+          )
+        ''')
+    conn.execute('''
+          CREATE TABLE IF NOT EXISTS upload_files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            batch_id TEXT NOT NULL,
+            filename TEXT NOT NULL
+          )
+    ''')
     conn.commit()
     conn.close()
 
@@ -153,6 +179,15 @@ def format_time_filter(seconds):
             return f"{m:02d}:{s:02d}"
     except Exception:
         return "00:00"
+
+# --- ログ用タイムスタンプをフォーマットする Jinja2 フィルター ---
+@app.template_filter('datetimeformat')
+def datetimeformat_filter(value, fmt='%Y-%m-%d %H:%M:%S'):
+    """UNIX タイムスタンプ（秒）を人間向け日時文字列に変換"""
+    try:
+        return datetime.fromtimestamp(float(value)).strftime(fmt)
+    except Exception:
+        return value
 
 # カスタムフィルター：タイトルの省略表示（30文字以上の場合）
 @app.template_filter('truncate_title')
@@ -221,23 +256,54 @@ def add_video_tag(video_id, tag):
     conn.commit()
     conn.close()
 
+def unique_filename(directory: str, filename: str) -> str:
+    """
+    directory 内に filename が存在する場合、
+    ファイル名の末尾に（1）（2）…を付けてユニークにする。
+    元ファイル名と拡張子はそのまま尊重します。
+    """
+    base, ext = os.path.splitext(filename)
+    candidate = filename
+    i = 1
+    # 全角括弧（日本語）を使う
+    while os.path.exists(os.path.join(directory, candidate)):
+        candidate = f"{base}（{i}）{ext}"
+        i += 1
+    return candidate
+
 # お気に入り切替用ルート
 @app.route('/toggle_favorite/<video_id>', methods=['POST'])
 @login_required
 def toggle_favorite(video_id):
-    username = session.get("username")
+    """
+    お気に入りの切り替えを行います。ユーザーごとに user_favorites テーブルを更新します。
+    """
+    # Flask-Login の current_user.id を使用してユーザーを取得
+    username = current_user.id
     conn = get_db_connection()
-    cur = conn.execute('SELECT 1 FROM user_favorites WHERE username = ? AND video_id = ?', (username, video_id))
+    # 既存の登録情報を確認
+    cur = conn.execute(
+        'SELECT 1 FROM user_favorites WHERE username = ? AND video_id = ?',
+        (username, video_id)
+    )
     row = cur.fetchone()
     if row:
-        # お気に入り登録済み → 削除する
-        conn.execute('DELETE FROM user_favorites WHERE username = ? AND video_id = ?', (username, video_id))
+        # 登録済みなら削除
+        conn.execute(
+            'DELETE FROM user_favorites WHERE username = ? AND video_id = ?',
+            (username, video_id)
+        )
         flash("お気に入りから削除しました。")
     else:
-        conn.execute('INSERT INTO user_favorites (username, video_id) VALUES (?, ?)', (username, video_id))
+        # 未登録なら追加
+        conn.execute(
+            'INSERT INTO user_favorites (username, video_id) VALUES (?, ?)',
+            (username, video_id)
+        )
         flash("お気に入りに追加しました。")
     conn.commit()
     conn.close()
+    # リダイレクトして一覧を再表示
     return redirect(request.referrer or url_for('index'))
 
 
@@ -319,42 +385,46 @@ def generate_scene_thumbnails(video_path, video_id, num_scenes=20):
 @app.route('/')
 @login_required
 def index():
-    # まず、DBからキャッシュ済みのメタデータを取得
-    all_videos = get_video_list()  # video_metadata テーブルから取得
+    # 1) メタデータ取得
+    all_videos = get_video_list()
 
-    # フィルター処理（ファイル名・ディレクトリなど）
-    q = request.args.get("q", "").strip().lower()
+    # 2) リクエストパラメータ
+    q                = request.args.get("q", "").strip().lower()
     directory_filter = request.args.get("directory", "all")
-    # デフォルト sort_by="date"（created）、order="desc"
-    sort_by = request.args.get("sort") or "date"
-    order = request.args.get("order") or "desc"  # "asc" or "desc"
+    sort_by       = request.args.get("sort", "date")
+    order            = request.args.get("order", "desc")
+    # ★ favorite は '1' が立っていたら True に
+    favorite_only    = request.args.get("favorite") == '1'
 
     videos = all_videos
-    # if directory_filter != "all":
-    #     videos = [v for v in videos if v["directory"].startswith(directory_filter)]
-    # if q:
-    #     videos = [v for v in videos if q in v["filename"].lower()]
-    # if favorite_filter:
-    #     # お気に入り情報は後で付与するため、ここでは一旦スキップ（または適宜処理）
-    #     videos = [v for v in videos if get_video_data(v["id"]).get("favorite")]
+    # ディレクトリ絞り込み
+    if directory_filter != "all":
+        videos = [v for v in videos if v["directory"].startswith(directory_filter)]
+    # キーワード検索
+    if q:
+        videos = [v for v in videos if q in v["filename"].lower()]
 
-    # ソート条件の適用
+    # ★ お気に入りのみフィルター
+    if favorite_only:
+        videos = [v for v in videos if get_video_data(v["id"])["favorite"]]
+
+    # ソート（views, date, duration, filename）
     reverse = (order == "desc")
     if sort_by == "views":
-        videos.sort(key=lambda v: get_video_data(v["id"]).get("views", 0), reverse=reverse)
+        videos.sort(key=lambda v: get_video_data(v["id"])["views"], reverse=reverse)
     elif sort_by == "date":
-         videos.sort(key=lambda v: v["created"], reverse=reverse)
+        videos.sort(key=lambda v: v["created"], reverse=reverse)
     elif sort_by == "duration":
         videos.sort(key=lambda v: v["duration"], reverse=reverse)
     elif sort_by == "filename":
         videos.sort(key=lambda v: v["filename"].lower(), reverse=reverse)
 
-    # ページネーション（全件から該当の100件のみを取り出す）
+    # ページネーション...
     per_page = 100
-    page = int(request.args.get("page", 1))
-    total = len(videos)
-    start = (page - 1) * per_page
-    end = start + per_page
+    page     = int(request.args.get("page", 1))
+    total    = len(videos)
+    start    = (page - 1) * per_page
+    end      = start + per_page
     videos_page = videos[start:end]
     total_pages = (total + per_page - 1) // per_page
 
@@ -375,9 +445,14 @@ def index():
 
     directories = [("all", "すべて")] + [(d, d) for d in VIDEO_DIRS]
 
-    return render_template('index.html', videos=videos_page, q=q, sort=sort_by, order=order,
-                           page=page, total_pages=total_pages, directory_filter=directory_filter,
-                           directories=directories)
+    return render_template(
+        'index.html',
+        videos=videos_page, q=q, sort=sort_by, order=order,
+        page=page, total_pages=total_pages,
+        directory_filter=directory_filter,
+        favorite_only=favorite_only,  # ★ テンプレートへ渡す
+        directories=directories
+    )
 
 @app.route('/delete_directory/<video_id>', methods=['POST'])
 @login_required
@@ -836,14 +911,10 @@ def upload_page():
     # アップロード用フォームを表示
     return render_template('upload.html', upload_dirs=UPLOAD_DIRS)
 
-@app.route('/upload', methods=['POST'])
+# POST を受け付けて非同期にアップロードを開始
+@app.route('/start_upload', methods=['POST'])
 @login_required
-def handle_upload():
-    """
-    - form で選択されたディレクトリに
-    - 複数ファイルを保存
-    - 進捗はクライアントの JS 側で xhr.upload.onprogress で取得
-    """
+def start_upload():
     dest_key = request.form['directory']
     dest_dir = UPLOAD_DIRS.get(dest_key)
     if not dest_dir:
@@ -855,35 +926,35 @@ def handle_upload():
         flash("ファイルを選択してください。")
         return redirect(url_for('upload_page'))
 
-    saved = []
-    for f in files:
-        filename = f.filename
-        target = os.path.join(dest_dir, filename)
-        f.save(target)
-        saved.append(filename)
+    # --- 1) バッチID とタイムスタンプを用意 ---
+    batch_id = str(uuid4())
+    ts = time.time()
 
-    # メタデータ更新
+    conn = get_db_connection()
+    # --- 2) upload_batches に書き込み ---
+    conn.execute('''
+        INSERT INTO upload_batches (batch_id, username, directory, count, timestamp)
+          VALUES (?, ?, ?, ?, ?)
+    ''', (batch_id, current_user.id, dest_key, len(files), ts))
+
+    # --- 3) ファイルを保存しつつ upload_files に書き込み ---
+    for f in files:
+        original = f.filename
+        save_path = UPLOAD_DIRS[dest_key]
+        unique = unique_filename(save_path, original)
+        f.save(os.path.join(save_path, unique))
+
+        conn.execute('''
+            INSERT INTO upload_files (batch_id, filename)
+              VALUES (?, ?)
+        ''', (batch_id, unique))
+
+    conn.commit()
+    conn.close()
+
+    flash(f"{len(files)} 件のアップロードが完了しました。")
     update_video_metadata()
-
-    flash(f"{len(saved)} 件のアップロードが完了しました。")
-    return redirect(url_for('index'))
-
-# POST を受け付けて非同期にアップロードを開始
-@app.route('/start_upload', methods=['POST'])
-@login_required
-def start_upload():
-    directory = request.form['directory']
-    files = request.files.getlist('videos')
-    # 実際のアップロード処理は別スレッド or Celery などで非同期に行い、
-    # 進捗は session またはグローバル辞書で管理します。
-    session['upload_total']   = len(files)
-    session['upload_done']    = 0
-    # ここでは簡易の例として同期的にループしますが、実際はバックグラウンドへ投げてください。
-    for f in files:
-        save_path = UPLOAD_DIRS[directory]
-        f.save(os.path.join(save_path, f.filename))
-        session['upload_done'] += 1
-
+    # アップロード進捗画面へリダイレクト
     return redirect(url_for('upload_progress'))
 
 # 進捗画面を表示する GET ルート
@@ -899,6 +970,46 @@ def upload_status():
     total = session.get('upload_total', 0)
     done  = session.get('upload_done',  0)
     return jsonify(total=total, done=done)
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated
+
+# ログ一覧
+@app.route('/logs')
+@login_required
+@admin_required
+def logs():
+    conn = get_db_connection()
+    batches = conn.execute('''
+      SELECT batch_id, username, directory, count, timestamp
+        FROM upload_batches
+       ORDER BY timestamp DESC
+    ''').fetchall()
+    conn.close()
+    return render_template('logs.html', batches=batches)
+
+# ログ詳細（バッチ内のファイル名リスト）
+@app.route('/logs/<batch_id>')
+@login_required
+@admin_required
+def log_detail(batch_id):
+    conn = get_db_connection()
+    batch = conn.execute('''
+      SELECT batch_id, username, directory, count, timestamp
+        FROM upload_batches WHERE batch_id = ?
+    ''', (batch_id,)).fetchone()
+    files = conn.execute('''
+      SELECT filename FROM upload_files WHERE batch_id = ?
+    ''', (batch_id,)).fetchall()
+    conn.close()
+    if not batch:
+        abort(404)
+    return render_template('log_detail.html', batch=batch, files=files)
 
 init_users()
 

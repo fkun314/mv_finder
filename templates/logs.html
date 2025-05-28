@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}アップロードログ一覧{% endblock %}
+{% block content %}
+<h2>アップロードログ（管理者向け）</h2>
+<table class="table">
+  <thead>
+    <tr>
+      <th>日時</th><th>ユーザー</th><th>ディレクトリ</th><th>件数</th><th>詳細</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for b in batches %}
+    <tr>
+      <td>{{ b.timestamp | datetimeformat }}</td>
+      <td>{{ b.username }}</td>
+      <td>{{ b.directory }}</td>
+      <td><a href="{{ url_for('log_detail', batch_id=b.batch_id) }}">{{ b.count }}</a></td>
+      <td><a href="{{ url_for('log_detail', batch_id=b.batch_id) }}">見る</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
