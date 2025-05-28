@@ -1,0 +1,664 @@
+{% extends "base.html" %}
+{% block title %}動画分析詳細 - VideoHub{% endblock %}
+{% block content %}
+
+<style>
+  .analysis-header {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border-left: 4px solid var(--primary-color);
+  }
+
+  .analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .analysis-section {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s ease;
+  }
+
+  .analysis-section:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .section-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e2e8f0;
+  }
+
+  .section-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+  }
+
+  .metric-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .metric-item:last-child {
+    border-bottom: none;
+  }
+
+  .metric-label {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .metric-value {
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  .quality-score {
+    font-size: 2.5rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+
+  .score-excellent {
+    color: var(--success-color);
+  }
+
+  .score-good {
+    color: var(--accent-color);
+  }
+
+  .score-poor {
+    color: var(--danger-color);
+  }
+
+  .quality-bar {
+    width: 100%;
+    height: 20px;
+    background: #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+  }
+
+  .quality-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.5s ease;
+    position: relative;
+  }
+
+  .quality-fill.excellent {
+    background: linear-gradient(135deg, var(--success-color) 0%, #22c55e 100%);
+  }
+
+  .quality-fill.good {
+    background: linear-gradient(135deg, var(--accent-color) 0%, #fbbf24 100%);
+  }
+
+  .quality-fill.poor {
+    background: linear-gradient(135deg, var(--danger-color) 0%, #ef4444 100%);
+  }
+
+  .quality-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 35%, rgba(255,255,255,0.3) 50%, transparent 65%);
+    animation: shine 2s infinite;
+  }
+
+  @keyframes shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .quality-description {
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+  }
+
+  .tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .tag-item {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    color: white;
+    padding: 0.4rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .auto-tag {
+    background: linear-gradient(135deg, var(--success-color) 0%, #22c55e 100%);
+  }
+
+  .manual-tag {
+    background: linear-gradient(135deg, var(--accent-color) 0%, #fbbf24 100%);
+  }
+
+  .technical-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+
+  .technical-item {
+    background: var(--light-bg);
+    padding: 1rem;
+    border-radius: 10px;
+    text-align: center;
+  }
+
+  .technical-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 0.25rem;
+  }
+
+  .technical-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  .file-info {
+    background: rgba(37, 99, 235, 0.05);
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .file-path {
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    word-break: break-all;
+    background: white;
+    padding: 0.5rem;
+    border-radius: 5px;
+    border-left: 3px solid var(--primary-color);
+  }
+
+  .analysis-meta {
+    background: var(--light-bg);
+    border-radius: 10px;
+    padding: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+
+  .chart-container {
+    position: relative;
+    height: 200px;
+    margin-bottom: 1rem;
+  }
+
+  .chart-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    background: var(--light-bg);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  .actions-section {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 2rem;
+  }
+
+  .btn-action {
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    margin-right: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .btn-primary-action {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    color: white;
+  }
+
+  .btn-primary-action:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, var(--primary-color) 100%);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+    color: white;
+    text-decoration: none;
+  }
+
+  .btn-secondary-action {
+    background: rgba(100, 116, 139, 0.1);
+    color: var(--secondary-color);
+    border: 1px solid rgba(100, 116, 139, 0.3);
+  }
+
+  .btn-secondary-action:hover {
+    background: var(--secondary-color);
+    color: white;
+    text-decoration: none;
+  }
+
+  .btn-warning-action {
+    background: linear-gradient(135deg, var(--accent-color) 0%, #fbbf24 100%);
+    color: white;
+  }
+
+  .btn-warning-action:hover {
+    background: linear-gradient(135deg, #d97706 0%, var(--accent-color) 100%);
+    transform: translateY(-2px);
+    color: white;
+    text-decoration: none;
+  }
+
+  .comparison-section {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 2rem;
+  }
+
+  .comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .comparison-item {
+    padding: 1rem;
+    border-radius: 10px;
+    background: var(--light-bg);
+  }
+
+  .comparison-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  .comparison-above-avg {
+    color: var(--success-color);
+  }
+
+  .comparison-below-avg {
+    color: var(--danger-color);
+  }
+
+  .comparison-avg {
+    color: var(--accent-color);
+  }
+
+  /* レスポンシブ対応 */
+  @media (max-width: 768px) {
+    .analysis-grid {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    .technical-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .comparison-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .quality-score {
+      font-size: 2rem;
+    }
+  }
+</style>
+
+<div class="analysis-header fade-in-up">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <h2 class="mb-2">
+        <i class="fas fa-analytics me-2"></i>
+        動画分析詳細
+      </h2>
+      <p class="text-muted mb-0">ファイル: {{ analysis.file_path | basename }}</p>
+    </div>
+    <div>
+      <a href="{{ url_for('video_page', video_id=video_id) }}" class="btn-action btn-primary-action">
+        <i class="fas fa-play"></i>
+        動画を再生
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="analysis-grid">
+  <!-- 品質スコア -->
+  <div class="analysis-section fade-in-up">
+    <h5 class="section-title">
+      <div class="section-icon">
+        <i class="fas fa-star"></i>
+      </div>
+      品質スコア
+    </h5>
+    
+    {% set quality = analysis.quality_score or 0 %}
+    <div class="quality-score {% if quality >= 70 %}score-excellent{% elif quality >= 40 %}score-good{% else %}score-poor{% endif %}">
+      {{ "%.1f"|format(quality) }}
+    </div>
+    
+    <div class="quality-bar">
+      <div class="quality-fill {% if quality >= 70 %}excellent{% elif quality >= 40 %}good{% else %}poor{% endif %}" 
+           style="width: {{ quality }}%"></div>
+    </div>
+    
+    <div class="quality-description">
+      {% if quality >= 70 %}
+        優秀な品質です
+      {% elif quality >= 40 %}
+        標準的な品質です
+      {% else %}
+        品質が低い可能性があります
+      {% endif %}
+    </div>
+    
+    <div class="metric-item">
+      <span class="metric-label">明度</span>
+      <span class="metric-value">{{ "%.1f"|format(analysis.avg_brightness or 0) }}</span>
+    </div>
+    <div class="metric-item">
+      <span class="metric-label">コントラスト</span>
+      <span class="metric-value">{{ "%.1f"|format(analysis.contrast_score or 0) }}</span>
+    </div>
+    <div class="metric-item">
+      <span class="metric-label">シャープネス</span>
+      <span class="metric-value">{{ "%.1f"|format(analysis.sharpness_score or 0) }}</span>
+    </div>
+  </div>
+
+  <!-- 技術情報 -->
+  <div class="analysis-section fade-in-up">
+    <h5 class="section-title">
+      <div class="section-icon">
+        <i class="fas fa-cog"></i>
+      </div>
+      技術仕様
+    </h5>
+    
+    <div class="technical-grid">
+      <div class="technical-item">
+        <div class="technical-value">{{ analysis.resolution or '不明' }}</div>
+        <div class="technical-label">解像度</div>
+      </div>
+      <div class="technical-item">
+        <div class="technical-value">{{ "%.1f"|format(analysis.fps or 0) }}</div>
+        <div class="technical-label">FPS</div>
+      </div>
+      <div class="technical-item">
+        <div class="technical-value">{{ analysis.codec or '不明' }}</div>
+        <div class="technical-label">動画コーデック</div>
+      </div>
+      <div class="technical-item">
+        <div class="technical-value">{{ analysis.audio_codec or 'なし' }}</div>
+        <div class="technical-label">音声コーデック</div>
+      </div>
+    </div>
+    
+    <div class="metric-item">
+      <span class="metric-label">ビットレート</span>
+      <span class="metric-value">
+        {% if analysis.bitrate %}
+          {{ "%.1f"|format(analysis.bitrate / 1000) }} kbps
+        {% else %}
+          不明
+        {% endif %}
+      </span>
+    </div>
+    <div class="metric-item">
+      <span class="metric-label">ファイルサイズ</span>
+      <span class="metric-value">
+        {% if analysis.file_size %}
+          {{ "%.1f"|format(analysis.file_size / 1024 / 1024) }} MB
+        {% else %}
+          不明
+        {% endif %}
+      </span>
+    </div>
+    <div class="metric-item">
+      <span class="metric-label">長さ</span>
+      <span class="metric-value">{{ analysis.duration | format_time }}</span>
+    </div>
+    <div class="metric-item">
+      <span class="metric-label">音声</span>
+      <span class="metric-value">
+        {% if analysis.has_audio %}
+          <i class="fas fa-check text-success"></i> あり
+        {% else %}
+          <i class="fas fa-times text-danger"></i> なし
+        {% endif %}
+      </span>
+    </div>
+  </div>
+
+  <!-- 自動タグ -->
+  <div class="analysis-section fade-in-up">
+    <h5 class="section-title">
+      <div class="section-icon">
+        <i class="fas fa-tags"></i>
+      </div>
+      自動生成タグ
+    </h5>
+    
+    {% if analysis.auto_tags %}
+    <div class="tags-container">
+      {% for tag in analysis.auto_tags %}
+      <span class="tag-item auto-tag">
+        <i class="fas fa-robot"></i>
+        {{ tag }}
+      </span>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-3">
+      <i class="fas fa-info-circle mb-2 d-block"></i>
+      <small>自動タグが生成されていません</small>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ファイル情報 -->
+  <div class="analysis-section fade-in-up">
+    <h5 class="section-title">
+      <div class="section-icon">
+        <i class="fas fa-file"></i>
+      </div>
+      ファイル情報
+    </h5>
+    
+    <div class="file-info">
+      <div class="metric-item">
+        <span class="metric-label">ファイルハッシュ</span>
+        <span class="metric-value" style="font-family: monospace;">
+          {{ analysis.file_hash[:16] }}...
+        </span>
+      </div>
+    </div>
+    
+    <div class="file-path">{{ analysis.file_path }}</div>
+  </div>
+</div>
+
+<!-- 比較統計 -->
+<div class="comparison-section fade-in-up">
+  <h5 class="section-title">
+    <div class="section-icon">
+      <i class="fas fa-chart-bar"></i>
+    </div>
+    ライブラリ平均との比較
+  </h5>
+  
+  <div class="comparison-grid">
+    <div class="comparison-item">
+      <div class="comparison-value comparison-above-avg">{{ "%.1f"|format(quality) }}</div>
+      <div class="technical-label">この動画の品質</div>
+    </div>
+    <div class="comparison-item">
+      <div class="comparison-value comparison-avg">65.0</div>
+      <div class="technical-label">ライブラリ平均</div>
+    </div>
+    <div class="comparison-item">
+      <div class="comparison-value {% if analysis.file_size > 500*1024*1024 %}comparison-above-avg{% else %}comparison-below-avg{% endif %}">
+        {{ "%.0f"|format((analysis.file_size or 0) / 1024 / 1024) }}MB
+      </div>
+      <div class="technical-label">ファイルサイズ</div>
+    </div>
+    <div class="comparison-item">
+      <div class="comparison-value {% if analysis.duration > 3600 %}comparison-above-avg{% else %}comparison-avg{% endif %}">
+        {{ analysis.duration | format_time }}
+      </div>
+      <div class="technical-label">再生時間</div>
+    </div>
+  </div>
+</div>
+
+<!-- 操作 -->
+<div class="actions-section fade-in-up">
+  <h5 class="section-title">
+    <div class="section-icon">
+      <i class="fas fa-tools"></i>
+    </div>
+    操作
+  </h5>
+  
+  <a href="{{ url_for('video_page', video_id=video_id) }}" class="btn-action btn-primary-action">
+    <i class="fas fa-play"></i>
+    動画を再生
+  </a>
+  
+  <a href="{{ url_for('index') }}" class="btn-action btn-secondary-action">
+    <i class="fas fa-list"></i>
+    一覧に戻る
+  </a>
+  
+  <a href="{{ url_for('analysis_dashboard') }}" class="btn-action btn-secondary-action">
+    <i class="fas fa-chart-line"></i>
+    分析ダッシュボード
+  </a>
+  
+  {% if quality < 30 %}
+  <button class="btn-action btn-warning-action" onclick="if(confirm('この動画は品質が低いです。削除しますか？')) { window.location.href='{{ url_for('delete_video', video_id=video_id) }}'; }">
+    <i class="fas fa-exclamation-triangle"></i>
+    低品質動画として削除
+  </button>
+  {% endif %}
+</div>
+
+<!-- 分析メタデータ -->
+<div class="analysis-section fade-in-up">
+  <h5 class="section-title">
+    <div class="section-icon">
+      <i class="fas fa-info-circle"></i>
+    </div>
+    分析情報
+  </h5>
+  
+  <div class="analysis-meta">
+    <div class="metric-item">
+      <span class="metric-label">分析日時</span>
+      <span class="metric-value">
+        {% if analysis.analyzed_at %}
+          {{ analysis.analyzed_at.strftime('%Y-%m-%d %H:%M:%S') }}
+        {% else %}
+          不明
+        {% endif %}
+      </span>
+    </div>
+    <div class="metric-item">
+      <span class="metric-label">分析エンジン</span>
+      <span class="metric-value">VideoAnalyzer v1.0</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ページロード時のアニメーション
+  const observerOptions = {
+    threshold: 0.1,
+    rootMargin: '0px 0px -50px 0px'
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = '1';
+        entry.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, observerOptions);
+
+  document.querySelectorAll('.fade-in-up').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(30px)';
+    el.style.transition = 'all 0.6s ease-out';
+    observer.observe(el);
+  });
+
+  // 品質バーのアニメーション
+  window.addEventListener('load', function() {
+    const qualityFill = document.querySelector('.quality-fill');
+    if (qualityFill) {
+      setTimeout(() => {
+        qualityFill.style.width = qualityFill.style.width;
+      }, 500);
+    }
+  });
+</script>
+
+{% endblock %}

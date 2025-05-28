@@ -1,30 +1,139 @@
 {% extends "base.html" %}
-{% block title %}アップロード中…{% endblock %}
+{% block title %}アップロード中 - VideoHub{% endblock %}
 {% block content %}
-  <h2>アップロード中…</h2>
-  <div class="progress" style="height: 25px;">
-    <div id="uploadBar" class="progress-bar" role="progressbar" style="width: 0%">0%</div>
-  </div>
-  <script>
-    // ページ読み込み後、1秒おきに進捗を問い合わせ
-    function poll() {
-      fetch("{{ url_for('upload_status') }}")
-        .then(r => r.json())
-        .then(data => {
-          const { total, done } = data;
-          const pct = total > 0 ? Math.round(done/total*100) : 0;
-          const bar = document.getElementById('uploadBar');
-          bar.style.width = pct + '%';
-          bar.textContent = pct + '%';
 
-          if (done < total) {
-            setTimeout(poll, 1000);
-          } else {
-            // 完了したら一覧へ戻る
+<style>
+  .progress-container {
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .progress-header {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border-left: 4px solid var(--primary-color);
+  }
+
+  .progress-icon {
+    font-size: 4rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    animation: spin 2s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .progress-bar-container {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 2rem;
+  }
+
+  .progress-bar-custom {
+    width: 100%;
+    height: 25px;
+    background: #e2e8f0;
+    border-radius: 15px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    border-radius: 15px;
+    transition: width 0.3s ease;
+    position: relative;
+  }
+
+  .progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 35%, rgba(255,255,255,0.3) 50%, transparent 65%);
+    animation: shine 1.5s infinite;
+  }
+
+  @keyframes shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .progress-text {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .progress-status {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+</style>
+
+<div class="progress-container fade-in-up">
+  <div class="progress-header">
+    <div class="progress-icon">
+      <i class="fas fa-cloud-upload-alt"></i>
+    </div>
+    <h2 class="mb-3">アップロード中...</h2>
+    <p class="text-muted mb-0">動画ファイルを処理しています</p>
+  </div>
+
+  <div class="progress-bar-container">
+    <div class="progress-bar-custom">
+      <div id="uploadBar" class="progress-fill" style="width: 0%"></div>
+    </div>
+    <div class="progress-text" id="progressText">0%</div>
+    <div class="progress-status" id="statusText">処理を開始しています...</div>
+  </div>
+</div>
+
+<script>
+  // ページ読み込み後、1秒おきに進捗を問い合わせ
+  function poll() {
+    fetch("{{ url_for('upload_status') }}")
+      .then(r => r.json())
+      .then(data => {
+        const { total, done } = data;
+        const pct = total > 0 ? Math.round(done/total*100) : 0;
+        const bar = document.getElementById('uploadBar');
+        const text = document.getElementById('progressText');
+        const status = document.getElementById('statusText');
+
+        bar.style.width = pct + '%';
+        text.textContent = pct + '%';
+
+        if (done < total) {
+          status.textContent = `${done} / ${total} ファイルを処理中...`;
+          setTimeout(poll, 1000);
+        } else {
+          status.textContent = 'アップロード完了！リダイレクト中...';
+          // 完了したら一覧へ戻る
+          setTimeout(() => {
             window.location = "{{ url_for('index') }}";
-          }
-        });
-    }
-    document.addEventListener('DOMContentLoaded', poll);
-  </script>
+          }, 2000);
+        }
+      })
+      .catch(error => {
+        console.error('進捗取得エラー:', error);
+        document.getElementById('statusText').textContent = 'エラーが発生しました';
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', poll);
+</script>
+
 {% endblock %}

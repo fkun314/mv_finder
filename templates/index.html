@@ -1,143 +1,530 @@
 {% extends "base.html" %}
-{% block title %}動画一覧{% endblock %}
+{% block title %}動画一覧 - VideoHub{% endblock %}
 {% block content %}
-<h2>動画一覧</h2>
 
-<!-- 一括処理中のオーバーレイ（初期状態は非表示） -->
-<div id="processingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color: rgba(0,0,0,0.5); z-index:9999; text-align:center; padding-top:20%;">
-  <h2 style="color:#fff;">処理を開始しています。しばらくお待ちください…</h2>
+<style>
+  .page-header {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border-left: 4px solid var(--primary-color);
+  }
+
+  .bulk-actions-panel {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(251, 191, 36, 0.1) 100%);
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border: 2px solid rgba(245, 158, 11, 0.3);
+    display: none;
+  }
+
+  .bulk-actions-panel.show {
+    display: block;
+    animation: slideDown 0.3s ease-out;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+  }
+
+  .video-card {
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .video-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .video-card.selected {
+    ring: 3px solid var(--primary-color);
+    transform: translateY(-5px);
+  }
+
+  .card-header-custom {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .thumbnail-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.7) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    display: flex;
+    align-items: flex-end;
+    padding: 1rem;
+  }
+
+  .video-card:hover .thumbnail-overlay {
+    opacity: 1;
+  }
+
+  .quick-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .btn-icon {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+  }
+
+  .btn-icon:hover {
+    transform: scale(1.1);
+  }
+
+  .card-body-custom {
+    padding: 1rem;
+  }
+
+  .video-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.3;
+  }
+
+  .video-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+
+  .video-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .tag-badge {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    color: white;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+
+  .card-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .checkbox-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .checkbox-custom {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    appearance: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .checkbox-custom:checked {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+  }
+
+  .checkbox-custom:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  .processing-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    z-index: 9999;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+  }
+
+  .processing-content {
+    background: white;
+    padding: 3rem;
+    border-radius: 20px;
+    text-align: center;
+    max-width: 400px;
+    animation: fadeInScale 0.3s ease-out;
+  }
+
+  @keyframes fadeInScale {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .stats-bar {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+  }
+
+  .stat-item {
+    text-align: center;
+  }
+
+  .stat-number {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+  }
+
+  .stat-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+  }
+
+  /* レスポンシブ調整 */
+  @media (max-width: 768px) {
+    .video-grid {
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+
+    .stats-bar {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .bulk-actions-panel {
+      padding: 1rem;
+    }
+  }
+</style>
+
+<div class="page-header fade-in-up">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <h2 class="mb-1">
+        <i class="fas fa-video me-2"></i>動画ライブラリ
+      </h2>
+      <p class="text-muted mb-0">お気に入りの動画を見つけよう</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('analysis_dashboard') }}" class="btn btn-modern btn-primary-modern btn-sm">
+        <i class="fas fa-chart-line me-1"></i>分析ダッシュボード
+      </a>
+      <a href="{{ url_for('duplicates_page') }}" class="btn btn-modern btn-warning-modern btn-sm">
+        <i class="fas fa-copy me-1"></i>重複管理
+      </a>
+    </div>
+  </div>
 </div>
 
-<!-- 動画一覧フォーム（チェックボックスを含む） -->
-<form method="POST" action="{{ url_for('bulk_move') }}" onsubmit="return confirmBulkMove();">
-  <div class="row">
-    {% for video in videos %}
-      <div class="col-md-3 mb-2">
-        <div class="card">
-          <!-- サムネイル表示（16:9固定例） -->
-          <div class="thumbnail-container" style="position: relative; width: 100%; padding-top: 56.25%; overflow: hidden;">
-            <a href="{{ url_for('video_page', video_id=video.id) }}">
-              <img src="{{ url_for('static', filename='thumbnails/' ~ video.thumb) }}" alt="{{ video.filename }}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
-            </a>
-            <div class="duration-overlay" style="position: absolute; bottom: 5px; right: 5px; background-color: rgba(0,0,0,0.7); color: #fff; padding: 2px 4px; font-size: 0.8em; border-radius: 3px;">
-              {{ video.duration | format_time }}
-            </div>
+<!-- 統計バー -->
+<div class="stats-bar fade-in-up">
+  <div class="stat-item">
+    <div class="stat-number">{{ videos|length }}</div>
+    <div class="stat-label">表示中の動画</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-number">{{ videos|selectattr('analysis')|list|length }}</div>
+    <div class="stat-label">分析済み</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-number">{{ videos|selectattr('favorite')|list|length }}</div>
+    <div class="stat-label">お気に入り</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-number">{{ page }}</div>
+    <div class="stat-label">現在のページ</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-number">{{ total_pages }}</div>
+    <div class="stat-label">総ページ数</div>
+  </div>
+</div>
+
+<!-- 動画グリッド -->
+<div class="video-grid fade-in-up">
+  {% for video in videos %}
+    <div class="video-card" data-video-id="{{ video.id }}">
+      <div class="card-header-custom">
+        <div class="thumbnail-container">
+          <a href="{{ url_for('video_page', video_id=video.id) }}">
+            <img src="{{ url_for('static', filename='thumbnails/' ~ video.thumb) }}"
+                 alt="{{ video.filename }}" loading="lazy">
+          </a>
+          <div class="duration-overlay">
+            {{ video.duration | format_time }}
           </div>
-          <div class="card-body p-2">
-            <!-- チェックボックス -->
-            <div class="form-check">
-              <input type="checkbox" class="form-check-input" name="selected_videos" value="{{ video.id }}" id="videoCheck{{ loop.index }}">
-              <label class="form-check-label" for="videoCheck{{ loop.index }}">{{ video.filename | truncate_title }}</label>
+          <div class="thumbnail-overlay">
+            <div class="quick-actions">
+              <form method="POST" action="{{ url_for('toggle_favorite', video_id=video.id) }}" style="display: inline;">
+                <button type="submit" class="btn-icon" style="background: rgba(245, 158, 11, 0.9);">
+                  {% if video.favorite %}
+                    <i class="fas fa-star text-white"></i>
+                  {% else %}
+                    <i class="far fa-star text-white"></i>
+                  {% endif %}
+                </button>
+              </form>
+              <a href="{{ url_for('video_page', video_id=video.id) }}" class="btn-icon" style="background: rgba(37, 99, 235, 0.9);">
+                <i class="fas fa-play text-white"></i>
+              </a>
             </div>
-            <p class="card-text mb-1" style="font-size: 0.9rem;">再生回数: {{ video.views }}</p>
-            <p class="card-text mb-1" style="font-size: 0.9rem;">タグ:
-              {% for tag in video.tags %}
-                <span class="badge badge-info">{{ tag }}</span>
-              {% endfor %}
-            </p>
-            <form method="POST" action="{{ url_for('toggle_favorite', video_id=video.id) }}" style="display: inline;">
-              <button type="submit" class="btn btn-sm btn-warning">
-                {% if video.favorite %}
-                  ★ お気に入り解除
-                {% else %}
-                  ☆ お気に入り追加
-                {% endif %}
-              </button>
-            </form>
           </div>
         </div>
       </div>
-    {% endfor %}
-  </div>
 
-  <!-- 一括移動／コピー用フォームコントロール -->
-  <div class="form-group">
-    <label for="bulk_destination">一括移動先:</label>
-    <select name="destination" class="form-control" id="bulk_destination">
-      <option value="doc">doc/</option>
-      <option value="me">me/</option>
-      <option value="doc/fc">doc/fc/</option>
-      <option value="doc/li">doc/li/</option>
-      <option value="me/fc">me/fc/</option>
-      <option value="me/li">me/li/</option>
-      <option value="as">as/</option>
-      <option value="iv">iv/</option>
-    </select>
-  </div>
-  <div class="form-group form-check">
-    <input type="checkbox" class="form-check-input" id="copy_mode" name="copy_mode">
-    <label class="form-check-label" for="copy_mode">コピー（元のファイルを残す）</label>
-  </div>
-  <button type="submit" class="btn btn-primary">一括処理実行</button>
-</form>
+      <div class="card-body-custom">
+        <h6 class="video-title">{{ video.filename | truncate_title }}</h6>
+
+        <div class="video-meta">
+          <span><i class="fas fa-eye me-1"></i>{{ video.views }}</span>
+          <span><i class="fas fa-clock me-1"></i>{{ video.duration | format_time }}</span>
+        </div>
+
+        {% if video.tags %}
+        <div class="video-tags">
+          {% for tag in video.tags[:3] %}
+            <span class="tag-badge">{{ tag }}</span>
+          {% endfor %}
+          {% if video.tags|length > 3 %}
+            <span class="tag-badge" style="background: var(--secondary-color);">+{{ video.tags|length - 3 }}</span>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {% if video.auto_tags %}
+        <div class="video-tags mt-1">
+          {% for tag in video.auto_tags[:2] %}
+            <span class="tag-badge" style="background: linear-gradient(135deg, var(--success-color) 0%, #22c55e 100%);">
+              <i class="fas fa-robot me-1"></i>{{ tag }}
+            </span>
+          {% endfor %}
+          {% if video.auto_tags|length > 2 %}
+            <span class="tag-badge" style="background: var(--success-color);">+{{ video.auto_tags|length - 2 }}</span>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="card-actions">
+          <div class="d-flex align-items-center gap-2">
+            {% if video.favorite %}
+              <i class="fas fa-heart text-danger" title="お気に入り"></i>
+            {% endif %}
+            {% if video.analysis %}
+              <a href="{{ url_for('video_analysis_detail', video_id=video.id) }}"
+                 class="btn btn-sm btn-outline-info" title="分析詳細を表示">
+                <i class="fas fa-chart-line"></i>
+              </a>
+              <span class="badge bg-primary" title="品質スコア">
+                {{ "%.0f"|format(video.analysis.quality_score or 0) }}
+              </span>
+            {% else %}
+              <span class="badge bg-secondary" title="未分析">
+                <i class="fas fa-clock"></i>
+              </span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+
+  {% if not videos %}
+    <div class="col-12">
+      <div class="text-center py-5">
+        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+        <h4 class="text-muted">動画が見つかりませんでした</h4>
+        <p class="text-muted">検索条件を変更してお試しください</p>
+      </div>
+    </div>
+  {% endif %}
+</div>
 
 <!-- ページネーション -->
-<nav aria-label="Page navigation">
-  <ul class="pagination justify-content-center">
-    {# Previousボタン #}
+{% if total_pages > 1 %}
+<nav aria-label="ページナビゲーション" class="fade-in-up">
+  <ul class="pagination pagination-modern justify-content-center">
+    <!-- Previous ボタン -->
     {% if page > 1 %}
       <li class="page-item">
-        <a class="page-link" href="{{ url_for('index', page=page-1, q=q, sort=sort, order=order, directory=directory_filter, favorite=request.args.get('favorite')) }}">Previous</a>
+        <a class="page-link" href="{{ url_for('index', page=page-1, q=q, sort=sort, order=order, directory=directory_filter, favorite=request.args.get('favorite')) }}">
+          <i class="fas fa-chevron-left"></i>
+        </a>
       </li>
     {% else %}
-      <li class="page-item disabled"><span class="page-link">Previous</span></li>
+      <li class="page-item disabled">
+        <span class="page-link"><i class="fas fa-chevron-left"></i></span>
+      </li>
     {% endif %}
 
-    {# 常に1ページ目を表示 #}
+    <!-- 常に1ページ目を表示 -->
     <li class="page-item {% if page == 1 %}active{% endif %}">
       <a class="page-link" href="{{ url_for('index', page=1, q=q, sort=sort, order=order, directory=directory_filter, favorite=request.args.get('favorite')) }}">1</a>
     </li>
 
-    {# 現在のページが4以上なら、1ページ目と2ページ目の間に省略表示 #}
+    <!-- 現在のページが4以上なら、1ページ目と2ページ目の間に省略表示 -->
     {% if page > 4 %}
       <li class="page-item disabled"><span class="page-link">...</span></li>
     {% endif %}
 
-    {# 現在ページの前後2ページを表示（2～最終ページ-1の範囲内） #}
+    <!-- 現在ページの前後2ページを表示（2～最終ページ-1の範囲内） -->
     {% for p in range(max(2, page-2), min(total_pages, page+3)) %}
       <li class="page-item {% if p == page %}active{% endif %}">
         <a class="page-link" href="{{ url_for('index', page=p, q=q, sort=sort, order=order, directory=directory_filter, favorite=request.args.get('favorite')) }}">{{ p }}</a>
       </li>
     {% endfor %}
 
-    {# 現在ページがtotal_pages-3以下なら、末尾との間に省略表示 #}
+    <!-- 現在ページがtotal_pages-3以下なら、末尾との間に省略表示 -->
     {% if page < total_pages - 3 %}
       <li class="page-item disabled"><span class="page-link">...</span></li>
     {% endif %}
 
-    {# 最終ページを常に表示（total_pages > 1 の場合） #}
+    <!-- 最終ページを常に表示（total_pages > 1 の場合） -->
     {% if total_pages > 1 %}
       <li class="page-item {% if page == total_pages %}active{% endif %}">
         <a class="page-link" href="{{ url_for('index', page=total_pages, q=q, sort=sort, order=order, directory=directory_filter, favorite=request.args.get('favorite')) }}">{{ total_pages }}</a>
       </li>
     {% endif %}
 
-    {# Nextボタン #}
+    <!-- Next ボタン -->
     {% if page < total_pages %}
       <li class="page-item">
-        <a class="page-link" href="{{ url_for('index', page=page+1, q=q, sort=sort, order=order, directory=directory_filter, favorite=request.args.get('favorite')) }}">Next</a>
+        <a class="page-link" href="{{ url_for('index', page=page+1, q=q, sort=sort, order=order, directory=directory_filter, favorite=request.args.get('favorite')) }}">
+          <i class="fas fa-chevron-right"></i>
+        </a>
       </li>
     {% else %}
-      <li class="page-item disabled"><span class="page-link">Next</span></li>
+      <li class="page-item disabled">
+        <span class="page-link"><i class="fas fa-chevron-right"></i></span>
+      </li>
     {% endif %}
   </ul>
 </nav>
+{% endif %}
 
-
+<!-- 処理中オーバーレイ -->
+<div id="processingOverlay" class="processing-overlay">
+  <div class="processing-content">
+    <div class="spinner"></div>
+    <h4 class="mb-2">処理中...</h4>
+    <p class="text-muted">しばらくお待ちください</p>
+  </div>
+</div>
 
 <script>
-  function confirmBulkMove() {
-    var checkboxes = document.querySelectorAll('input[name="selected_videos"]:checked');
-    if (checkboxes.length === 0) {
-      alert("一括処理する動画を選択してください。");
-      return false;
-    }
-    if (!confirm("選択された動画を処理します。よろしいですか？")) {
-      return false;
-    }
-    // オーバーレイ表示
-    document.getElementById('processingOverlay').style.display = 'block';
-    return true;
-  }
+  // カードホバーエフェクト
+  document.querySelectorAll('.video-card').forEach(card => {
+    card.addEventListener('mouseenter', function() {
+      this.style.transform = 'translateY(-8px) scale(1.02)';
+    });
+
+    card.addEventListener('mouseleave', function() {
+      this.style.transform = 'translateY(0) scale(1)';
+    });
+  });
+
+  // アニメーション追加
+  const observerOptions = {
+    threshold: 0.1,
+    rootMargin: '0px 0px -50px 0px'
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.animation = 'fadeInUp 0.6s ease-out forwards';
+      }
+    });
+  }, observerOptions);
+
+  document.querySelectorAll('.video-card').forEach(card => {
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(30px)';
+    observer.observe(card);
+  });
 </script>
+
 {% endblock %}

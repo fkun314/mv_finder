@@ -1,26 +1,580 @@
 {% extends "base.html" %}
-{% block title %}視聴履歴{% endblock %}
+{% block title %}視聴履歴 - VideoHub{% endblock %}
 {% block content %}
-  <h2>あなたの視聴履歴</h2>
-  <div class="row">
-    {% for h in history_items %}
-      <div class="col-md-3 mb-3">
-        <div class="card">
-          <a href="{{ url_for('video_page', video_id=h.id) }}">
-            <img src="{{ url_for('static', filename='thumbnails/' ~ h.thumb) }}"
-                 class="card-img-top" style="object-fit:cover; height:180px;" 
-                 alt="{{ h.filename }}">
+
+<style>
+  .history-header {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border-left: 4px solid var(--primary-color);
+    text-align: center;
+  }
+
+  .history-icon {
+    font-size: 3rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+  }
+
+  .history-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .history-card {
+    background: white;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .history-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .card-thumbnail {
+    position: relative;
+    width: 100%;
+    height: 180px;
+    overflow: hidden;
+  }
+
+  .card-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+
+  .history-card:hover .card-thumbnail img {
+    transform: scale(1.05);
+  }
+
+  .duration-badge {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.6) 100%);
+    color: white;
+    padding: 0.3rem 0.6rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+  }
+
+  .watched-indicator {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: linear-gradient(135deg, var(--success-color) 0%, #22c55e 100%);
+    color: white;
+    padding: 0.3rem 0.6rem;
+    border-radius: 15px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .card-content {
+    padding: 1.5rem;
+  }
+
+  .video-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+  }
+
+  .video-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+
+  .meta-icon {
+    width: 16px;
+    text-align: center;
+    color: var(--primary-color);
+  }
+
+  .watched-time {
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--primary-color);
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .btn-action {
+    flex: 1;
+    padding: 0.6rem;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    text-decoration: none;
+  }
+
+  .btn-primary-action {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    color: white;
+  }
+
+  .btn-primary-action:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, var(--primary-color) 100%);
+    transform: translateY(-2px);
+    color: white;
+    text-decoration: none;
+  }
+
+  .btn-secondary-action {
+    background: rgba(100, 116, 139, 0.1);
+    color: var(--secondary-color);
+    border: 1px solid rgba(100, 116, 139, 0.3);
+  }
+
+  .btn-secondary-action:hover {
+    background: var(--secondary-color);
+    color: white;
+    text-decoration: none;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: white;
+    border-radius: 20px;
+    box-shadow: var(--card-shadow);
+  }
+
+  .empty-icon {
+    font-size: 4rem;
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+    opacity: 0.5;
+  }
+
+  .empty-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+  }
+
+  .empty-subtitle {
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+    line-height: 1.6;
+  }
+
+  .btn-browse {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    color: white;
+    border: none;
+    border-radius: 15px;
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-browse:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, var(--primary-color) 100%);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+    color: white;
+    text-decoration: none;
+  }
+
+  .filter-section {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--card-shadow);
+  }
+
+  .filter-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .filter-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .filter-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .filter-select {
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.5rem 1rem;
+    background: white;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+  }
+
+  .filter-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+  }
+
+  .stats-bar {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    box-shadow: var(--card-shadow);
+  }
+
+  .stat-item {
+    text-align: center;
+  }
+
+  .stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    display: block;
+  }
+
+  .stat-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+  }
+
+  /* アニメーション */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .fade-in-up {
+    animation: fadeInUp 0.6s ease-out;
+  }
+
+  /* レスポンシブ対応 */
+  @media (max-width: 768px) {
+    .history-grid {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    .stats-bar {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .filter-controls {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .filter-item {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.25rem;
+    }
+
+    .filter-select {
+      width: 100%;
+    }
+  }
+</style>
+
+<div class="history-header fade-in-up">
+  <div class="history-icon">
+    <i class="fas fa-history"></i>
+  </div>
+  <h2 class="mb-3">視聴履歴</h2>
+  <p class="text-muted mb-0">最近視聴した動画を確認できます</p>
+</div>
+
+{% if history_items %}
+  <!-- 統計バー -->
+  <div class="stats-bar fade-in-up">
+    <div class="stat-item">
+      <span class="stat-number">{{ history_items|length }}</span>
+      <div class="stat-label">視聴した動画</div>
+    </div>
+    <div class="stat-item">
+      <span class="stat-number">{{ (history_items|map(attribute='duration')|sum / 60)|round }}</span>
+      <div class="stat-label">総視聴時間（分）</div>
+    </div>
+    <div class="stat-item">
+      <span class="stat-number">{{ history_items|map(attribute='viewed_at')|unique|list|length }}</span>
+      <div class="stat-label">視聴日数</div>
+    </div>
+  </div>
+
+  <!-- フィルター -->
+  <div class="filter-section fade-in-up">
+    <h6 class="filter-title">
+      <i class="fas fa-filter"></i>
+      フィルター
+    </h6>
+    <div class="filter-controls">
+      <div class="filter-item">
+        <label for="sortOrder">並び順:</label>
+        <select class="filter-select" id="sortOrder">
+          <option value="newest">新しい順</option>
+          <option value="oldest">古い順</option>
+          <option value="duration-desc">長い動画順</option>
+          <option value="duration-asc">短い動画順</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="dateFilter">期間:</label>
+        <select class="filter-select" id="dateFilter">
+          <option value="all">すべて</option>
+          <option value="today">今日</option>
+          <option value="week">1週間以内</option>
+          <option value="month">1ヶ月以内</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- 履歴グリッド -->
+  <div class="history-grid fade-in-up" id="historyGrid">
+    {% for item in history_items %}
+      <div class="history-card" data-viewed-at="{{ item.viewed_at }}" data-duration="{{ item.duration }}">
+        <div class="card-thumbnail">
+          <a href="{{ url_for('video_page', video_id=item.id) }}">
+            <img src="{{ url_for('static', filename='thumbnails/' ~ item.thumb) }}"
+                 alt="{{ item.filename }}" loading="lazy">
           </a>
-          <div class="card-body p-2">
-            <p class="card-text mb-1">{{ h.filename }}</p>
-            <p class="card-text mb-1">長さ: {{ h.duration|format_time }}</p>
-            <p class="card-text mb-1">視聴日時: {{ h.viewed_at }}</p>
+          <div class="watched-indicator">
+            <i class="fas fa-eye"></i>
+            視聴済み
+          </div>
+          <div class="duration-badge">
+            <i class="fas fa-clock me-1"></i>
+            {{ item.duration | format_time }}
+          </div>
+        </div>
+
+        <div class="card-content">
+          <h6 class="video-title">{{ item.filename }}</h6>
+
+          <div class="video-meta">
+            <div class="meta-item">
+              <i class="fas fa-calendar-alt meta-icon"></i>
+              <span>{{ item.viewed_at }}</span>
+            </div>
+            <div class="meta-item">
+              <i class="fas fa-clock meta-icon"></i>
+              <span>{{ item.duration | format_time }}</span>
+            </div>
+          </div>
+
+          <div class="watched-time">
+            <i class="fas fa-history"></i>
+            最近視聴
+          </div>
+
+          <div class="card-actions">
+            <a href="{{ url_for('video_page', video_id=item.id) }}" class="btn-action btn-primary-action">
+              <i class="fas fa-play"></i>
+              再生
+            </a>
+            <a href="{{ url_for('index', q=item.filename.split('.')[0]) }}" class="btn-action btn-secondary-action">
+              <i class="fas fa-search"></i>
+              検索
+            </a>
           </div>
         </div>
       </div>
     {% endfor %}
-    {% if not history_items %}
-      <p>まだ視聴履歴がありません。</p>
-    {% endif %}
   </div>
+{% else %}
+  <!-- 空の状態 -->
+  <div class="empty-state fade-in-up">
+    <div class="empty-icon">
+      <i class="fas fa-history"></i>
+    </div>
+    <h4 class="empty-title">まだ視聴履歴がありません</h4>
+    <p class="empty-subtitle">
+      動画を視聴すると、ここに履歴が表示されます。<br>
+      お気に入りの動画を見つけて視聴を開始しましょう！
+    </p>
+    <a href="{{ url_for('index') }}" class="btn-browse">
+      <i class="fas fa-video"></i>
+      動画を探す
+    </a>
+  </div>
+{% endif %}
+
+<script>
+  // フィルター機能
+  const sortOrder = document.getElementById('sortOrder');
+  const dateFilter = document.getElementById('dateFilter');
+  const historyGrid = document.getElementById('historyGrid');
+
+  function applyFilters() {
+    const cards = Array.from(historyGrid.querySelectorAll('.history-card'));
+    const sortValue = sortOrder.value;
+    const dateValue = dateFilter.value;
+
+    // 日付フィルター
+    const now = new Date();
+    const filteredCards = cards.filter(card => {
+      if (dateValue === 'all') return true;
+
+      const viewedAt = new Date(card.dataset.viewedAt);
+      const diffTime = now - viewedAt;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      switch (dateValue) {
+        case 'today':
+          return diffDays <= 1;
+        case 'week':
+          return diffDays <= 7;
+        case 'month':
+          return diffDays <= 30;
+        default:
+          return true;
+      }
+    });
+
+    // ソート
+    filteredCards.sort((a, b) => {
+      switch (sortValue) {
+        case 'newest':
+          return new Date(b.dataset.viewedAt) - new Date(a.dataset.viewedAt);
+        case 'oldest':
+          return new Date(a.dataset.viewedAt) - new Date(b.dataset.viewedAt);
+        case 'duration-desc':
+          return parseFloat(b.dataset.duration) - parseFloat(a.dataset.duration);
+        case 'duration-asc':
+          return parseFloat(a.dataset.duration) - parseFloat(b.dataset.duration);
+        default:
+          return 0;
+      }
+    });
+
+    // すべてのカードを非表示
+    cards.forEach(card => {
+      card.style.display = 'none';
+    });
+
+    // フィルター済みカードを表示
+    filteredCards.forEach((card, index) => {
+      card.style.display = 'block';
+      card.style.animationDelay = (index * 0.1) + 's';
+      card.classList.add('fade-in-up');
+    });
+  }
+
+  // イベントリスナー
+  sortOrder.addEventListener('change', applyFilters);
+  dateFilter.addEventListener('change', applyFilters);
+
+  // カードホバーエフェクト
+  document.querySelectorAll('.history-card').forEach(card => {
+    card.addEventListener('mouseenter', function() {
+      this.style.transform = 'translateY(-8px) scale(1.02)';
+    });
+
+    card.addEventListener('mouseleave', function() {
+      this.style.transform = 'translateY(0) scale(1)';
+    });
+  });
+
+  // アニメーション設定
+  const observerOptions = {
+    threshold: 0.1,
+    rootMargin: '0px 0px -50px 0px'
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = '1';
+        entry.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, observerOptions);
+
+  document.querySelectorAll('.fade-in-up').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(30px)';
+    el.style.transition = 'all 0.6s ease-out';
+    observer.observe(el);
+  });
+
+  // 初期表示時のアニメーション遅延
+  document.querySelectorAll('.history-card').forEach((card, index) => {
+    card.style.animationDelay = (index * 0.1) + 's';
+  });
+</script>
+
 {% endblock %}

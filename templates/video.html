@@ -1,102 +1,601 @@
 {% extends "base.html" %}
-{% block title %}{{ video.filename }} - 再生{% endblock %}
+{% block title %}{{ video.filename }} - 再生 - VideoHub{% endblock %}
 {% block content %}
-<div class="row">
-  <!-- メインコンテンツ：col-md-10 -->
-  <div class="col-md-10">
-    <!-- タイトルはそのままフル表示 -->
-    <h2 style="margin-bottom: 0.5rem;">{{ video.filename }}</h2>
-    <p style="margin-bottom: 0.5rem;">再生回数: {{ video.views }}</p>
-    <!-- お気に入り切替ボタン -->
-    <form method="POST" action="{{ url_for('toggle_favorite', video_id=video.id) }}" style="display: inline;">
-      <button type="submit" class="btn btn-sm btn-warning">
-        {% if video.favorite %}
-          ★ お気に入り解除
-        {% else %}
-          ☆ お気に入り追加
-        {% endif %}
-      </button>
-    </form>
-    <!-- 削除ボタン -->
-    <form method="POST" action="{{ url_for('delete_video', video_id=video.id) }}" style="display: inline; margin-left: 10px;">
-      <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('本当に削除しますか？')">削除</button>
-    </form>
-    <!-- 移動用フォーム -->
-    <form method="POST" action="{{ url_for('move_video', video_id=video.id) }}" style="display: inline; margin-left: 10px;">
-      <select name="destination" class="form-control form-control-sm" style="display: inline-block; width: auto;">
-        <option value="doc">doc/</option>
-        <option value="me">me/</option>
-        <option value="doc/fc">doc/fc/</option>
-        <option value="doc/li">doc/li/</option>
-        <option value="me/fc">me/fc/</option>
-        <option value="me/li">me/li/</option>
-        <option value="as">as/</option>
-        <option value="iv">iv/</option>
-      </select>
-      <button type="submit" class="btn btn-sm btn-info" onclick="return confirm('指定のディレクトリに移動しますか？')">移動</button>
-    </form>
 
-    {% if "431960" in video.directory %}
-      <form method="POST" action="{{ url_for('delete_directory', video_id=video.id) }}" onsubmit="return confirm('本当にこのディレクトリ全体を削除しますか？');" style="display:inline;">
-        <button type="submit" class="btn btn-sm btn-danger">このディレクトリを丸ごと削除</button>
-      </form>
-    {% endif %}
-    
-    <video id="videoPlayer" width="100%" height="auto" controls autoplay>
-      <source src="{{ url_for('serve_video', video_id=video.id) }}" type="video/mp4">
-      ブラウザがvideoタグに対応していません。
-    </video>
-    
-    <h4 class="mt-4">シーン一覧（クリックでジャンプ）</h4>
-    <div class="row">
-      {% for scene in scenes %}
-        <div class="col-3 mb-2">
-          <img class="img-fluid scene-thumb" src="{{ url_for('static', filename='scenes/' ~ scene.thumb) }}" 
-               alt="Scene {{ loop.index }}" style="cursor:pointer" onclick="jumpTo({{ scene.time }})">
-          <p class="text-center small mt-1">{{ scene.time | format_time }}</p>
+<style>
+  .video-player-container {
+    background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(30,41,59,0.9) 100%);
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .video-player-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.03)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.03)"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grain)"/></svg>');
+    pointer-events: none;
+  }
+
+  .video-header {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .video-title {
+    color: white;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  }
+
+  .video-meta-bar {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+
+  .meta-item {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .video-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .btn-video-action {
+    padding: 0.6rem 1.2rem;
+    border-radius: 25px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: none;
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-favorite {
+    background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+    color: white;
+  }
+
+  .btn-favorite.favorited {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  }
+
+  .btn-danger-video {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    color: white;
+  }
+
+  .btn-info-video {
+    background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%);
+    color: white;
+  }
+
+  .btn-video-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+
+  #videoPlayer {
+    width: 100%;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    position: relative;
+    z-index: 1;
+  }
+
+  .scenes-section {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--card-shadow);
+  }
+
+  .section-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .scenes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+  }
+
+  .scene-item {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f8fafc;
+  }
+
+  .scene-item:hover {
+    transform: scale(1.05);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .scene-thumb {
+    width: 100%;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+
+  .scene-time {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+
+  .tags-section {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--card-shadow);
+  }
+
+  .tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .tag-item {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .tag-form {
+    background: rgba(37, 99, 235, 0.1);
+    border-radius: 15px;
+    padding: 1.5rem;
+    border: 2px solid rgba(37, 99, 235, 0.2);
+  }
+
+  .sidebar {
+    background: white;
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+    height: fit-content;
+    position: sticky;
+    top: 2rem;
+  }
+
+  .sidebar-video {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+    margin-bottom: 1rem;
+    border-radius: 10px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    background: #f8fafc;
+  }
+
+  .sidebar-video:hover {
+    transform: translateX(5px);
+    box-shadow: var(--card-shadow);
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .sidebar-thumb {
+    width: 100%;
+    height: 80px;
+    object-fit: cover;
+  }
+
+  .sidebar-info {
+    padding: 0.75rem;
+  }
+
+  .sidebar-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .sidebar-meta {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+  }
+
+  .move-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(14, 165, 233, 0.1);
+    padding: 0.5rem;
+    border-radius: 20px;
+    border: 1px solid rgba(14, 165, 233, 0.3);
+  }
+
+  .move-select {
+    border: none;
+    background: transparent;
+    color: var(--primary-color);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.25rem;
+  }
+
+  .delete-directory-form {
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(239, 68, 68, 0.1) 100%);
+    border: 2px solid rgba(220, 38, 38, 0.3);
+    border-radius: 15px;
+    padding: 1rem;
+    margin-top: 1rem;
+  }
+
+  /* レスポンシブ対応 */
+  @media (max-width: 768px) {
+    .video-player-container {
+      padding: 1rem;
+    }
+
+    .video-header {
+      padding: 1rem;
+    }
+
+    .video-title {
+      font-size: 1.2rem;
+    }
+
+    .video-meta-bar {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .video-actions {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .scenes-grid {
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+
+    .scenes-section,
+    .tags-section,
+    .sidebar {
+      padding: 1rem;
+    }
+  }
+</style>
+
+<div class="row">
+  <!-- メインコンテンツ -->
+  <div class="col-lg-9">
+    <div class="video-player-container fade-in-up">
+      <div class="video-header">
+        <h1 class="video-title">
+          <i class="fas fa-play-circle me-2"></i>{{ video.filename }}
+        </h1>
+
+        <div class="video-meta-bar">
+          <div class="meta-item">
+            <i class="fas fa-eye"></i>
+            <span>{{ video.views }} 回再生</span>
+          </div>
+          <div class="meta-item">
+            <i class="fas fa-clock"></i>
+            <span>{{ duration | format_time }}</span>
+          </div>
+          <div class="meta-item">
+            <i class="fas fa-folder"></i>
+            <span>{{ video.directory | basename }}</span>
+          </div>
         </div>
-      {% endfor %}
-    </div>
-    <h4 class="mt-4">タグ</h4>
-    <div>
-      {% for tag in tags %}
-        <span class="badge badge-info">{{ tag }}</span>
-      {% endfor %}
-    </div>
-    {% if session.logged_in %}
-    <form action="{{ url_for('add_tag') }}" method="POST" class="mt-3">
-      <input type="hidden" name="video_id" value="{{ video.id }}">
-      <div class="form-group">
-        <label for="tag">タグを追加:</label>
-        <input type="text" class="form-control" id="tag" name="tag">
+
+        <div class="video-actions">
+          <!-- お気に入りボタン -->
+          <form method="POST" action="{{ url_for('toggle_favorite', video_id=video.id) }}" style="display: inline;">
+            <button type="submit" class="btn-video-action btn-favorite {% if video.favorite %}favorited{% endif %}">
+              {% if video.favorite %}
+                <i class="fas fa-heart"></i>
+                お気に入り解除
+              {% else %}
+                <i class="far fa-heart"></i>
+                お気に入り追加
+              {% endif %}
+            </button>
+          </form>
+
+          <!-- 削除ボタン -->
+          <form method="POST" action="{{ url_for('delete_video', video_id=video.id) }}" style="display: inline;">
+            <button type="submit" class="btn-video-action btn-danger-video"
+                    onclick="return confirm('本当に削除しますか？')">
+              <i class="fas fa-trash"></i>
+              削除
+            </button>
+          </form>
+
+          <!-- 移動フォーム -->
+          <form method="POST" action="{{ url_for('move_video', video_id=video.id) }}" class="move-form">
+            <i class="fas fa-folder-open"></i>
+            <select name="destination" class="move-select">
+              <option value="doc">📁 doc/</option>
+              <option value="me">👤 me/</option>
+              <option value="doc/fc">📁 doc/fc/</option>
+              <option value="doc/li">📁 doc/li/</option>
+              <option value="me/fc">👤 me/fc/</option>
+              <option value="me/li">👤 me/li/</option>
+              <option value="as">📂 as/</option>
+              <option value="iv">📂 iv/</option>
+            </select>
+            <button type="submit" class="btn-video-action btn-info-video btn-sm"
+                    onclick="return confirm('指定のディレクトリに移動しますか？')">
+              <i class="fas fa-arrow-right"></i>
+              移動
+            </button>
+          </form>
+
+          <!-- 分析詳細ボタン -->
+          {% if video.analysis %}
+          <a href="{{ url_for('video_analysis_detail', video_id=video.id) }}" class="btn-video-action btn-info-video">
+            <i class="fas fa-chart-line"></i>
+            分析詳細
+          </a>
+          {% endif %}
+        </div>
+
+        {% if "431960" in video.directory %}
+        <div class="delete-directory-form">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <h6 class="text-danger mb-1">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                ディレクトリ一括削除
+              </h6>
+              <small class="text-muted">このディレクトリ全体をD:\removeに移動します</small>
+            </div>
+            <form method="POST" action="{{ url_for('delete_directory', video_id=video.id) }}" style="display: inline;">
+              <button type="submit" class="btn btn-danger btn-sm"
+                      onclick="return confirm('本当にこのディレクトリ全体を削除しますか？')">
+                <i class="fas fa-folder-minus me-1"></i>
+                実行
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endif %}
       </div>
-      <button type="submit" class="btn btn-primary">追加</button>
-    </form>
-    {% endif %}
-    <a href="{{ url_for('index') }}" class="btn btn-secondary mt-3">戻る</a>
+
+      <video id="videoPlayer" controls autoplay>
+        <source src="{{ url_for('serve_video', video_id=video.id) }}" type="video/mp4">
+        ブラウザがvideoタグに対応していません。
+      </video>
+    </div>
+
+    <!-- シーン一覧 -->
+    <div class="scenes-section fade-in-up">
+      <h3 class="section-title">
+        <i class="fas fa-film"></i>
+        シーン一覧
+      </h3>
+      <div class="scenes-grid">
+        {% for scene in scenes %}
+          <div class="scene-item" onclick="jumpTo({{ scene.time }})">
+            <img class="scene-thumb" src="{{ url_for('static', filename='scenes/' ~ scene.thumb) }}"
+                 alt="Scene {{ loop.index }}" loading="lazy">
+            <div class="scene-time">{{ scene.time | format_time }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- タグセクション -->
+    <div class="tags-section fade-in-up">
+      <h3 class="section-title">
+        <i class="fas fa-tags"></i>
+        タグ
+      </h3>
+
+      {% if tags %}
+      <div class="tags-container">
+        {% for tag in tags %}
+          <span class="tag-item">
+            <i class="fas fa-tag"></i>
+            {{ tag }}
+          </span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if video.auto_tags %}
+      <div class="tags-container mt-2">
+        <h6 class="mb-2">
+          <i class="fas fa-robot me-1"></i>
+          自動生成タグ
+        </h6>
+        {% for tag in video.auto_tags %}
+          <span class="tag-item" style="background: linear-gradient(135deg, var(--success-color) 0%, #22c55e 100%);">
+            <i class="fas fa-robot"></i>
+            {{ tag }}
+          </span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if current_user.is_authenticated %}
+      <div class="tag-form">
+        <h5 class="mb-3">
+          <i class="fas fa-plus-circle me-2"></i>
+          新しいタグを追加
+        </h5>
+        <form action="{{ url_for('add_tag') }}" method="POST">
+          <input type="hidden" name="video_id" value="{{ video.id }}">
+          <div class="row">
+            <div class="col-md-8">
+              <input type="text" class="form-control form-control-modern"
+                     name="tag" placeholder="タグ名を入力..." required>
+            </div>
+            <div class="col-md-4">
+              <button type="submit" class="btn btn-modern btn-primary-modern w-100">
+                <i class="fas fa-plus me-1"></i>追加
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="text-center fade-in-up">
+      <a href="{{ url_for('index') }}" class="btn btn-modern btn-secondary-modern">
+        <i class="fas fa-arrow-left me-2"></i>
+        動画一覧に戻る
+      </a>
+    </div>
   </div>
-  <!-- サイドバー：col-md-2（ランダム最大12件） -->
-  <div class="col-md-2">
-    <h4>他の動画</h4>
-    {% for v in sidebar_videos %}
-      <div class="card mb-2">
-        <a href="{{ url_for('video_page', video_id=v.id) }}">
-          <img src="{{ url_for('static', filename='thumbnails/' ~ v.thumb) }}" class="card-img-top" alt="{{ v.filename }}">
+
+  <!-- サイドバー -->
+  <div class="col-lg-3">
+    <div class="sidebar fade-in-up">
+      <h4 class="section-title">
+        <i class="fas fa-list"></i>
+        関連動画
+      </h4>
+
+      {% for v in sidebar_videos %}
+        <a href="{{ url_for('video_page', video_id=v.id) }}" class="sidebar-video">
+          <img src="{{ url_for('static', filename='thumbnails/' ~ v.thumb) }}"
+               class="sidebar-thumb" alt="{{ v.filename }}" loading="lazy">
+          <div class="sidebar-info">
+            <div class="sidebar-title">{{ v.filename | truncate_title }}</div>
+            <div class="sidebar-meta">
+              <i class="fas fa-eye me-1"></i>{{ v.views }} 回再生
+            </div>
+          </div>
         </a>
-        <div class="card-body p-2">
-          <p class="card-text mb-1" style="font-size: 0.9rem;">{{ v.filename | truncate_title }}</p>
-          <p class="card-text mb-0" style="font-size: 0.8rem;">再生回数: {{ v.views }}</p>
+      {% endfor %}
+
+      {% if not sidebar_videos %}
+        <div class="text-center text-muted py-3">
+          <i class="fas fa-info-circle mb-2 d-block"></i>
+          <small>関連動画がありません</small>
         </div>
-      </div>
-    {% endfor %}
+      {% endif %}
+    </div>
   </div>
 </div>
 
 <script>
   function jumpTo(time) {
-    var video = document.getElementById('videoPlayer');
+    const video = document.getElementById('videoPlayer');
     video.currentTime = time;
     video.play();
+
+    // ビジュアルフィードバック
+    const scenes = document.querySelectorAll('.scene-item');
+    scenes.forEach(scene => scene.style.transform = 'scale(1)');
+    event.target.closest('.scene-item').style.transform = 'scale(1.1)';
+    setTimeout(() => {
+      event.target.closest('.scene-item').style.transform = 'scale(1)';
+    }, 300);
   }
+
+  // 動画プレイヤーのキーボードショートカット
+  document.getElementById('videoPlayer').addEventListener('keydown', function(e) {
+    switch(e.key) {
+      case ' ':
+        e.preventDefault();
+        this.paused ? this.play() : this.pause();
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        this.currentTime -= 10;
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        this.currentTime += 10;
+        break;
+      case 'f':
+        e.preventDefault();
+        this.requestFullscreen();
+        break;
+    }
+  });
+
+  // フェードインアニメーション
+  const observerOptions = {
+    threshold: 0.1,
+    rootMargin: '0px 0px -50px 0px'
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = '1';
+        entry.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, observerOptions);
+
+  document.querySelectorAll('.fade-in-up').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(30px)';
+    el.style.transition = 'all 0.6s ease-out';
+    observer.observe(el);
+  });
+
+  // 動画メタデータ表示の更新
+  document.getElementById('videoPlayer').addEventListener('loadedmetadata', function() {
+    console.log('動画がロードされました:', this.duration + '秒');
+  });
 </script>
+
 {% endblock %}
