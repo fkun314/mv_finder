@@ -1,27 +1,743 @@
 {% extends "base.html" %}
-{% block title %}動画アップロード{% endblock %}
+{% block title %}動画アップロード - VideoHub{% endblock %}
 {% block content %}
-<h2>動画アップロード</h2>
 
-<form id="uploadForm" method="POST" action="{{ url_for('start_upload') }}" enctype="multipart/form-data">
-  <div class="form-group">
-    <label for="directory">アップロード先ディレクトリ</label>
-    <select class="form-control" id="directory" name="directory">
-      {% for key, path in upload_dirs.items() %}
-        <option value="{{ key }}">{{ key }}/</option>
-      {% endfor %}
-    </select>
+<style>
+  .upload-container {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .upload-header {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border-left: 4px solid var(--primary-color);
+    text-align: center;
+  }
+
+  .upload-icon {
+    font-size: 3rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+  }
+
+  .upload-form {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 2rem;
+  }
+
+  .form-section {
+    margin-bottom: 2rem;
+  }
+
+  .section-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .form-control-upload {
+    border: 2px solid #e2e8f0;
+    border-radius: 15px;
+    padding: 1rem;
+    transition: all 0.3s ease;
+    background: var(--light-bg);
+  }
+
+  .form-control-upload:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+    background: white;
+  }
+
+  .file-upload-area {
+    border: 3px dashed #d1d5db;
+    border-radius: 20px;
+    padding: 3rem 2rem;
+    text-align: center;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(147, 51, 234, 0.05) 100%);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .file-upload-area:hover {
+    border-color: var(--primary-color);
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+    transform: translateY(-2px);
+  }
+
+  .file-upload-area.dragover {
+    border-color: var(--accent-color);
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(251, 191, 36, 0.1) 100%);
+    transform: scale(1.02);
+  }
+
+  .upload-icon-large {
+    font-size: 4rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+  }
+
+  .file-upload-area:hover .upload-icon-large {
+    color: var(--accent-color);
+    transform: scale(1.1);
+  }
+
+  .upload-text {
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+
+  .upload-hint {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+
+  #videos {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .file-list {
+    margin-top: 1.5rem;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .file-item {
+    background: rgba(37, 99, 235, 0.1);
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-left: 4px solid var(--primary-color);
+    animation: slideInRight 0.3s ease-out;
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(50px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .file-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .file-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--primary-color);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+  }
+
+  .file-details {
+    flex: 1;
+  }
+
+  .file-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+  }
+
+  .file-size {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  .remove-file {
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .remove-file:hover {
+    background: #b91c1c;
+    transform: scale(1.1);
+  }
+
+  .upload-summary {
+    background: rgba(16, 163, 127, 0.1);
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border-left: 4px solid var(--success-color);
+    display: none;
+  }
+
+  .upload-summary.show {
+    display: block;
+    animation: fadeInUp 0.3s ease-out;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .btn-upload {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    color: white;
+    border: none;
+    border-radius: 15px;
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .btn-upload:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1d4ed8 0%, var(--primary-color) 100%);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+    color: white;
+  }
+
+  .btn-upload:disabled {
+    background: var(--secondary-color);
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .progress-section {
+    display: none;
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 2rem;
+  }
+
+  .progress-section.show {
+    display: block;
+    animation: fadeInUp 0.3s ease-out;
+  }
+
+  .progress-bar-custom {
+    height: 20px;
+    background: #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    border-radius: 10px;
+    transition: width 0.3s ease;
+    position: relative;
+  }
+
+  .progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 35%, rgba(255,255,255,0.3) 50%, transparent 65%);
+    animation: shine 2s infinite;
+  }
+
+  @keyframes shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .directory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .directory-option {
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 15px;
+    padding: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .directory-option:hover {
+    border-color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.05);
+    transform: translateY(-2px);
+  }
+
+  .directory-option.selected {
+    border-color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.1);
+    transform: translateY(-2px);
+  }
+
+  .directory-option::after {
+    content: '✓';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 25px;
+    height: 25px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.8rem;
+  }
+
+  .directory-option.selected::after {
+    display: flex;
+  }
+
+  .directory-icon {
+    font-size: 2rem;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+  }
+
+  .directory-name {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  /* レスポンシブ対応 */
+  @media (max-width: 768px) {
+    .upload-header {
+      padding: 1.5rem;
+    }
+
+    .upload-form {
+      padding: 1.5rem;
+    }
+
+    .file-upload-area {
+      padding: 2rem 1rem;
+    }
+
+    .upload-icon-large {
+      font-size: 3rem;
+    }
+
+    .directory-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="upload-container fade-in-up">
+  <div class="upload-header">
+    <div class="upload-icon">
+      <i class="fas fa-cloud-upload-alt"></i>
+    </div>
+    <h2 class="mb-3">動画アップロード</h2>
+    <p class="text-muted mb-0">お気に入りの動画をライブラリに追加しましょう</p>
   </div>
-  <div class="form-group">
-    <label for="videos">動画ファイルを選択</label>
-    <input type="file" class="form-control-file" id="videos" name="videos" multiple accept="video/*">
+
+  <form id="uploadForm" method="POST" action="{{ url_for('start_upload') }}" enctype="multipart/form-data">
+    <div class="upload-form">
+      <!-- ディレクトリ選択 -->
+      <div class="form-section">
+        <h5 class="section-title">
+          <i class="fas fa-folder-open"></i>
+          アップロード先を選択
+        </h5>
+        <div class="directory-grid">
+          {% for key, path in upload_dirs.items() %}
+            <div class="directory-option" data-value="{{ key }}">
+              <div class="directory-icon">
+                {% if 'doc' in key %}
+                  <i class="fas fa-file-alt"></i>
+                {% elif 'me' in key %}
+                  <i class="fas fa-user"></i>
+                {% else %}
+                  <i class="fas fa-folder"></i>
+                {% endif %}
+              </div>
+              <div class="directory-name">{{ key }}/</div>
+            </div>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="directory" id="directoryInput" required>
+      </div>
+
+      <!-- ファイル選択 -->
+      <div class="form-section">
+        <h5 class="section-title">
+          <i class="fas fa-video"></i>
+          動画ファイルを選択
+        </h5>
+        <div class="file-upload-area" id="uploadArea">
+          <div class="upload-icon-large">
+            <i class="fas fa-cloud-upload-alt"></i>
+          </div>
+          <div class="upload-text">ファイルをドラッグ&ドロップ</div>
+          <div class="upload-hint">または、クリックしてファイルを選択</div>
+          <input type="file" id="videos" name="videos" multiple accept="video/*">
+        </div>
+        <div id="fileList" class="file-list"></div>
+      </div>
+
+      <!-- アップロード概要 -->
+      <div id="uploadSummary" class="upload-summary">
+        <h6 class="mb-3">
+          <i class="fas fa-info-circle me-2"></i>
+          アップロード概要
+        </h6>
+        <div class="summary-item">
+          <span>選択されたファイル数:</span>
+          <span id="fileCount">0</span>
+        </div>
+        <div class="summary-item">
+          <span>総ファイルサイズ:</span>
+          <span id="totalSize">0 MB</span>
+        </div>
+        <div class="summary-item">
+          <span>アップロード先:</span>
+          <span id="selectedDirectory">未選択</span>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-upload" id="submitBtn" disabled>
+        <i class="fas fa-upload"></i>
+        アップロード開始
+      </button>
+    </div>
+  </form>
+
+  <!-- 進捗表示 -->
+  <div id="progressSection" class="progress-section">
+    <h5 class="section-title mb-3">
+      <i class="fas fa-spinner fa-spin"></i>
+      アップロード中...
+    </h5>
+    <div class="progress-bar-custom">
+      <div class="progress-fill" id="progressBar" style="width: 0%;"></div>
+    </div>
+    <div class="text-center mt-2">
+      <span id="progressText">準備中...</span>
+    </div>
   </div>
-  <div class="progress" style="height: 25px; display: none;" id="uploadProgressContainer">
-    <div class="progress-bar" id="uploadProgressBar" role="progressbar" style="width: 0%;">0%</div>
-  </div>
-  <button type="submit" class="btn btn-primary">アップロード開始</button>
-</form>
+</div>
+
 <script>
-document.getElementById('uploadForm').addEventListener('submit', () => {
+  let selectedFiles = [];
+  let selectedDirectory = '';
+
+  // ディレクトリ選択
+  document.querySelectorAll('.directory-option').forEach(option => {
+    option.addEventListener('click', function() {
+      // 他の選択を解除
+      document.querySelectorAll('.directory-option').forEach(opt => {
+        opt.classList.remove('selected');
+      });
+
+      // 現在の選択をマーク
+      this.classList.add('selected');
+      selectedDirectory = this.dataset.value;
+      document.getElementById('directoryInput').value = selectedDirectory;
+      document.getElementById('selectedDirectory').textContent = selectedDirectory + '/';
+
+      updateSubmitButton();
+    });
+  });
+
+  // ファイルアップロード処理
+  const uploadArea = document.getElementById('uploadArea');
+  const fileInput = document.getElementById('videos');
+  const fileList = document.getElementById('fileList');
+
+  // クリックでファイル選択
+  uploadArea.addEventListener('click', () => {
+    fileInput.click();
+  });
+
+  // ドラッグ&ドロップ
+  uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+  });
+
+  uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+  });
+
+  uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    handleFiles(e.dataTransfer.files);
+  });
+
+  // ファイル選択
+  fileInput.addEventListener('change', (e) => {
+    handleFiles(e.target.files);
+  });
+
+  function handleFiles(files) {
+    for (let file of files) {
+      if (file.type.startsWith('video/')) {
+        if (!selectedFiles.find(f => f.name === file.name && f.size === file.size)) {
+          selectedFiles.push(file);
+          addFileToList(file);
+        }
+      }
+    }
+    updateSummary();
+    updateSubmitButton();
+  }
+
+  function addFileToList(file) {
+    const fileItem = document.createElement('div');
+    fileItem.className = 'file-item';
+
+    const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+
+    fileItem.innerHTML = `
+      <div class="file-info">
+        <div class="file-icon">
+          <i class="fas fa-video"></i>
+        </div>
+        <div class="file-details">
+          <div class="file-name">${file.name}</div>
+          <div class="file-size">${sizeInMB} MB</div>
+        </div>
+      </div>
+      <button type="button" class="remove-file" onclick="removeFile('${file.name}', ${file.size})">
+        <i class="fas fa-times"></i>
+      </button>
+    `;
+
+    fileList.appendChild(fileItem);
+  }
+
+  function removeFile(fileName, fileSize) {
+    selectedFiles = selectedFiles.filter(f => !(f.name === fileName && f.size === fileSize));
+
+    // DOM から削除
+    const fileItems = fileList.querySelectorAll('.file-item');
+    fileItems.forEach(item => {
+      if (item.querySelector('.file-name').textContent === fileName) {
+        item.remove();
+      }
+    });
+
+    updateSummary();
+    updateSubmitButton();
+  }
+
+  function updateSummary() {
+    const summary = document.getElementById('uploadSummary');
+    const fileCount = document.getElementById('fileCount');
+    const totalSize = document.getElementById('totalSize');
+
+    const count = selectedFiles.length;
+    const size = selectedFiles.reduce((total, file) => total + file.size, 0);
+    const sizeInMB = (size / (1024 * 1024)).toFixed(2);
+
+    fileCount.textContent = count;
+    totalSize.textContent = sizeInMB + ' MB';
+
+    if (count > 0) {
+      summary.classList.add('show');
+    } else {
+      summary.classList.remove('show');
+    }
+  }
+
+  function updateSubmitButton() {
+    const submitBtn = document.getElementById('submitBtn');
+    const canSubmit = selectedFiles.length > 0 && selectedDirectory;
+
+    submitBtn.disabled = !canSubmit;
+
+    if (canSubmit) {
+      submitBtn.innerHTML = `
+        <i class="fas fa-upload"></i>
+        ${selectedFiles.length}件をアップロード開始
+      `;
+    } else {
+      submitBtn.innerHTML = `
+        <i class="fas fa-upload"></i>
+        アップロード開始
+      `;
+    }
+  }
+
+  // フォーム送信
+  document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    if (selectedFiles.length === 0 || !selectedDirectory) {
+      alert('ファイルとアップロード先を選択してください。');
+      return;
+    }
+
+  // フォーム送信
+  document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    if (selectedFiles.length === 0 || !selectedDirectory) {
+      alert('ファイルとアップロード先を選択してください。');
+      return;
+    }
+
+    // プログレス表示
+    document.getElementById('progressSection').classList.add('show');
+    document.querySelector('.upload-form').style.display = 'none';
+
+    // FormData作成
+    const formData = new FormData();
+    formData.append('directory', selectedDirectory);
+    selectedFiles.forEach(file => {
+      formData.append('videos', file);
+    });
+
+    // XMLHttpRequest でアップロード
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.onprogress = function(e) {
+      if (e.lengthComputable) {
+        const percentComplete = (e.loaded / e.total) * 100;
+        document.getElementById('progressBar').style.width = percentComplete + '%';
+        document.getElementById('progressText').textContent =
+          `${Math.round(percentComplete)}% - ${selectedFiles.length}件中 アップロード中...`;
+      }
+    };
+
+    xhr.onload = function() {
+      if (xhr.status === 200) {
+        document.getElementById('progressBar').style.width = '100%';
+        document.getElementById('progressText').textContent = 'アップロード完了！リダイレクト中...';
+
+        setTimeout(() => {
+          window.location.href = "{{ url_for('index') }}";
+        }, 1500);
+      } else {
+        alert('アップロードに失敗しました。');
+        document.getElementById('progressSection').classList.remove('show');
+        document.querySelector('.upload-form').style.display = 'block';
+      }
+    };
+
+    xhr.onerror = function() {
+      alert('アップロードエラーが発生しました。');
+      document.getElementById('progressSection').classList.remove('show');
+      document.querySelector('.upload-form').style.display = 'block';
+    };
+
+    xhr.open('POST', "{{ url_for('start_upload') }}");
+    xhr.send(formData);
+  });
+
+  // 初期化
+  updateSummary();
+  updateSubmitButton();
+
+  // ページ離脱警告
+  window.addEventListener('beforeunload', function(e) {
+    if (selectedFiles.length > 0 && !document.getElementById('progressSection').classList.contains('show')) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  // ファイルタイプバリデーション
+  function validateFileType(file) {
+    const allowedTypes = ['video/mp4', 'video/avi', 'video/mkv', 'video/mov', 'video/webm'];
+    return allowedTypes.includes(file.type) || file.name.match(/\.(mp4|avi|mkv|mov|webm)$/i);
+  }
+
+  // 最大ファイルサイズチェック（例：1GB）
+  function validateFileSize(file) {
+    const maxSize = 1024 * 1024 * 1024; // 1GB
+    return file.size <= maxSize;
+  }
+
+  // アニメーション効果
+  const observerOptions = {
+    threshold: 0.1,
+    rootMargin: '0px 0px -50px 0px'
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = '1';
+        entry.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, observerOptions);
+
+  document.querySelectorAll('.fade-in-up').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(30px)';
+    el.style.transition = 'all 0.6s ease-out';
+    observer.observe(el);
+  });
 </script>
+
 {% endblock %}

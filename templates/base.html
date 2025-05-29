@@ -2,84 +2,407 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}動画サイト{% endblock %}</title>
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
-    .search-form { margin-bottom: 20px; }
-    /* サムネイルのコンテナを16:9固定に */
+    :root {
+      --primary-color: #2563eb;
+      --secondary-color: #64748b;
+      --accent-color: #f59e0b;
+      --danger-color: #dc2626;
+      --success-color: #16a34a;
+      --dark-bg: #1e293b;
+      --light-bg: #f8fafc;
+      --border-color: #e2e8f0;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+      --card-shadow-hover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    }
+
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .main-container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: var(--card-shadow-hover);
+      margin: 20px auto;
+      max-width: 1400px;
+      overflow: hidden;
+    }
+
+    /* ヘッダースタイル */
+    .navbar-custom {
+      background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+      padding: 1rem 1.5rem;
+      border-radius: 20px 20px 0 0;
+    }
+
+    .navbar-brand {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: white !important;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .navbar-brand:hover {
+      color: var(--accent-color) !important;
+      transform: scale(1.02);
+      transition: all 0.3s ease;
+    }
+
+    /* 検索フォームスタイル */
+    .search-container {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 1rem;
+      backdrop-filter: blur(10px);
+      margin: 1rem 0;
+    }
+
+    .form-control-modern {
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      transition: all 0.3s ease;
+      padding: 0.75rem 1rem;
+    }
+
+    .form-control-modern:focus {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 0.2rem rgba(245, 158, 11, 0.25);
+      background: white;
+    }
+
+    .btn-modern {
+      border-radius: 10px;
+      font-weight: 600;
+      padding: 0.75rem 1.5rem;
+      transition: all 0.3s ease;
+      border: none;
+    }
+
+    .btn-primary-modern {
+      background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+      color: white;
+    }
+
+    .btn-primary-modern:hover {
+      background: linear-gradient(135deg, #1d4ed8 0%, var(--primary-color) 100%);
+      transform: translateY(-2px);
+      box-shadow: var(--card-shadow-hover);
+    }
+
+    .btn-warning-modern {
+      background: linear-gradient(135deg, var(--accent-color) 0%, #fbbf24 100%);
+      color: white;
+    }
+
+    .btn-danger-modern {
+      background: linear-gradient(135deg, var(--danger-color) 0%, #ef4444 100%);
+      color: white;
+    }
+
+    .btn-secondary-modern {
+      background: linear-gradient(135deg, var(--secondary-color) 0%, #94a3b8 100%);
+      color: white;
+    }
+
+    /* カードスタイル */
     .thumbnail-container {
       position: relative;
       width: 100%;
-      padding-top: 56.25%;  /* 16:9 の比率 */
+      padding-top: 56.25%;
       overflow: hidden;
+      border-radius: 15px;
+      box-shadow: var(--card-shadow);
     }
+
     .thumbnail-container img {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      object-fit: cover;  /* アスペクト比を保ちながら切り取る */
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+
+    .card-modern {
+      border: none;
+      border-radius: 15px;
+      background: white;
+      box-shadow: var(--card-shadow);
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+
+    .card-modern:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--card-shadow-hover);
+    }
+
+    .card-modern:hover .thumbnail-container img {
+      transform: scale(1.05);
+    }
+
+    .duration-overlay {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.6) 100%);
+      color: white;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    /* ページネーション */
+    .pagination-modern .page-link {
+      border: none;
+      border-radius: 8px;
+      margin: 0 2px;
+      color: var(--primary-color);
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .pagination-modern .page-item.active .page-link {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .pagination-modern .page-link:hover {
+      background: var(--primary-color);
+      color: white;
+      transform: translateY(-2px);
+    }
+
+    /* アラート */
+    .alert-modern {
+      border: none;
+      border-radius: 15px;
+      padding: 1rem 1.5rem;
+      margin: 1rem 0;
+      backdrop-filter: blur(10px);
+    }
+
+    .alert-info-modern {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 197, 253, 0.1) 100%);
+      border-left: 4px solid var(--primary-color);
+      color: var(--primary-color);
+    }
+
+    /* ユーザーアクション */
+    .user-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .user-info {
+      color: white;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 0.5rem 1rem;
+      border-radius: 25px;
+      backdrop-filter: blur(10px);
+    }
+
+    /* バッジ */
+    .badge-modern {
+      padding: 0.4rem 0.8rem;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.75rem;
+    }
+
+    /* チェックボックス */
+    .form-check-modern {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0.5rem 0;
+    }
+
+    .form-check-input-modern {
+      width: 1.2rem;
+      height: 1.2rem;
+      border-radius: 6px;
+      border: 2px solid var(--border-color);
+      transition: all 0.3s ease;
+    }
+
+    .form-check-input-modern:checked {
+      background-color: var(--primary-color);
+      border-color: var(--primary-color);
+    }
+
+    /* レスポンシブ調整 */
+    @media (max-width: 768px) {
+      .main-container {
+        margin: 10px;
+        border-radius: 15px;
+      }
+
+      .navbar-custom {
+        border-radius: 15px 15px 0 0;
+        padding: 1rem;
+      }
+
+      .search-container {
+        padding: 0.75rem;
+      }
+
+      .user-actions {
+        justify-content: center;
+        margin-top: 1rem;
+      }
+
+      .btn-modern {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+      }
+    }
+
+    /* アニメーション */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .fade-in-up {
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    /* 現在の選択項目のハイライト */
+    .current-filter {
+      background: rgba(245, 158, 11, 0.2);
+      border: 2px solid var(--accent-color);
     }
   </style>
 </head>
 <body>
-  <header class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center">
-      <h1><a href="{{ url_for('index') }}">動画サイト</a></h1>
-      <form class="form-inline search-form" method="GET" action="{{ url_for('index') }}">
-        <input type="text" class="form-control mr-2" name="q" placeholder="タイトル・タグで検索" value="{{ q if q is defined }}">
-        <!-- ソートの選択 -->
-        <select name="sort" class="form-control mr-2">
-          <option value="">ソート</option>
-          <option value="views" {% if sort=='views' %}selected{% endif %}>再生回数</option>
-          <option value="date" {% if sort=='date' %}selected{% endif %}>作成日</option>
-          <option value="duration" {% if sort=='duration' %}selected{% endif %}>動画の長さ</option>
-          <option value="filename" {% if sort=='filename' %}selected{% endif %}>ファイル名</option>
-        </select>
-        <select name="order" class="form-control mr-2">
-          <option value="desc" {% if order=='desc' %}selected{% endif %}>降順</option>
-          <option value="asc" {% if order=='asc' %}selected{% endif %}>昇順</option>
-        </select>
-        <select class="form-control mr-2" name="directory">
-          {% for d, label in directories %}
-            <option value="{{ d }}" {% if directory_filter == d %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-        <div class="form-check mr-2">
-          <input class="form-check-input" type="checkbox" name="favorite" value="1" id="favoriteFilter" {% if request.args.get('favorite') %}checked{% endif %}>
-          <label class="form-check-label" for="favoriteFilter">
-            お気に入りのみ
-          </label>
-        </div>
-        <button type="submit" class="btn btn-primary">検索</button>
-      </form>
-      <div>
-        {% if current_user.is_authenticated %}
-          <span class="mr-2"> {{ current_user.id }}</span>
-          <a class="btn btn-primary" href="{{ url_for('upload_page') }}">アップロード</a>
-          <a class="btn btn-primary" href="{{ url_for('history') }}">視聴履歴</a>
-          <a href="{{ url_for('trash') }}" class="btn btn-secondary">ゴミ箱</a>
-          <a href="{{ url_for('logout') }}" class="btn btn-danger">ログアウト</a>
-        {% else %}
-          <a href="{{ url_for('login') }}" class="btn btn-primary">ログイン</a>
-        {% endif %}
-      </div>
-    </div>
-    <hr>
-  </header>
+  <div class="main-container">
+    <header class="navbar-custom">
+      <div class="container-fluid">
+        <div class="row w-100 align-items-center">
+          <div class="col-md-3">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+              <i class="fas fa-play-circle"></i>
+              VideoHub
+            </a>
+          </div>
 
-  <main class="container">
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <div class="alert alert-info">
-          {% for message in messages %}
-            <div>{{ message }}</div>
-          {% endfor %}
+          <div class="col-md-6">
+            <div class="search-container">
+              <form method="GET" action="{{ url_for('index') }}" class="row g-2">
+                <div class="col-md-4">
+                  <input type="text" class="form-control form-control-modern" name="q"
+                         placeholder="🔍 検索..." value="{{ q if q is defined }}" aria-label="検索">
+                </div>
+                <div class="col-md-2">
+                  <select name="sort" class="form-control form-control-modern">
+                    <option value="">ソート</option>
+                    <option value="views" {% if sort=='views' %}selected{% endif %}>👁️ 再生回数</option>
+                    <option value="date" {% if sort=='date' %}selected{% endif %}>📅 作成日</option>
+                    <option value="duration" {% if sort=='duration' %}selected{% endif %}>⏱️ 長さ</option>
+                    <option value="filename" {% if sort=='filename' %}selected{% endif %}>📄 ファイル名</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <select name="order" class="form-control form-control-modern">
+                    <option value="desc" {% if order=='desc' %}selected{% endif %}>↓ 降順</option>
+                    <option value="asc" {% if order=='asc' %}selected{% endif %}>↑ 昇順</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <select class="form-control form-control-modern" name="directory">
+                    {% for d, label in directories %}
+                      <option value="{{ d }}" {% if directory_filter == d %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <button type="submit" class="btn btn-modern btn-warning-modern w-100">
+                    <i class="fas fa-search"></i>
+                  </button>
+                </div>
+                <div class="col-12 mt-2">
+                  <div class="form-check form-check-modern">
+                    <input class="form-check-input form-check-input-modern" type="checkbox" name="favorite" value="1"
+                           id="favoriteFilter" {% if request.args.get('favorite') %}checked{% endif %}>
+                    <label class="form-check-label text-white" for="favoriteFilter">
+                      ⭐ お気に入りのみ表示
+                    </label>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="col-md-3">
+            <div class="user-actions">
+              {% if current_user.is_authenticated %}
+                <span class="user-info">
+                  <i class="fas fa-user"></i> {{ current_user.id }}
+                </span>
+                <a class="btn btn-modern btn-primary-modern btn-sm" href="{{ url_for('upload_page') }}" aria-label="Upload">
+                  <i class="fas fa-upload"></i>
+                </a>
+                <a class="btn btn-modern btn-secondary-modern btn-sm" href="{{ url_for('history') }}" aria-label="History">
+                  <i class="fas fa-history"></i>
+                </a>
+                <a href="{{ url_for('trash') }}" class="btn btn-modern btn-secondary-modern btn-sm" aria-label="Trash">
+                  <i class="fas fa-trash"></i>
+                </a>
+                <a href="{{ url_for('logout') }}" class="btn btn-modern btn-danger-modern btn-sm" aria-label="Logout">
+                  <i class="fas fa-sign-out-alt"></i>
+                </a>
+              {% else %}
+                <a href="{{ url_for('login') }}" class="btn btn-modern btn-primary-modern">
+                  <i class="fas fa-sign-in-alt"></i> ログイン
+                </a>
+              {% endif %}
+            </div>
+          </div>
         </div>
-      {% endif %}
-    {% endwith %}
-    {% block content %}{% endblock %}
-  </main>
+      </div>
+    </header>
+
+    <main class="container-fluid p-4">
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="alert alert-modern alert-info-modern fade-in-up">
+            <i class="fas fa-info-circle me-2"></i>
+            {% for message in messages %}
+              <div>{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,23 +1,210 @@
 {% extends "base.html" %}
-{% block title %}アップロードログ一覧{% endblock %}
+{% block title %}アップロードログ - VideoHub{% endblock %}
 {% block content %}
-<h2>アップロードログ（管理者向け）</h2>
-<table class="table">
-  <thead>
-    <tr>
-      <th>日時</th><th>ユーザー</th><th>ディレクトリ</th><th>件数</th><th>詳細</th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for b in batches %}
-    <tr>
-      <td>{{ b.timestamp | datetimeformat }}</td>
-      <td>{{ b.username }}</td>
-      <td>{{ b.directory }}</td>
-      <td><a href="{{ url_for('log_detail', batch_id=b.batch_id) }}">{{ b.count }}</a></td>
-      <td><a href="{{ url_for('log_detail', batch_id=b.batch_id) }}">見る</a></td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+
+<style>
+  .logs-header {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border-left: 4px solid var(--primary-color);
+    text-align: center;
+  }
+
+  .logs-icon {
+    font-size: 3rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+  }
+
+  .logs-table-container {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+    overflow-x: auto;
+  }
+
+  .logs-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .logs-table th,
+  .logs-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .logs-table th {
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--light-bg);
+    position: sticky;
+    top: 0;
+  }
+
+  .logs-table tbody tr:hover {
+    background: rgba(37, 99, 235, 0.05);
+  }
+
+  .batch-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+  }
+
+  .batch-link:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+  }
+
+  .user-badge {
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--primary-color);
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .directory-badge {
+    background: rgba(16, 163, 127, 0.1);
+    color: var(--success-color);
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .count-badge {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--accent-color);
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: white;
+    border-radius: 20px;
+    box-shadow: var(--card-shadow);
+  }
+
+  .empty-icon {
+    font-size: 4rem;
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+    opacity: 0.5;
+  }
+
+  .empty-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+  }
+
+  .empty-subtitle {
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+    line-height: 1.6;
+  }
+</style>
+
+<div class="logs-header fade-in-up">
+  <div class="logs-icon">
+    <i class="fas fa-list-alt"></i>
+  </div>
+  <h2 class="mb-3">アップロードログ</h2>
+  <p class="text-muted mb-0">管理者向け - すべてのアップロード履歴</p>
+</div>
+
+{% if batches %}
+<div class="logs-table-container fade-in-up">
+  <table class="logs-table">
+    <thead>
+      <tr>
+        <th>日時</th>
+        <th>ユーザー</th>
+        <th>ディレクトリ</th>
+        <th>件数</th>
+        <th>詳細</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for batch in batches %}
+      <tr>
+        <td>{{ batch.timestamp | datetimeformat }}</td>
+        <td>
+          <span class="user-badge">
+            <i class="fas fa-user me-1"></i>
+            {{ batch.username }}
+          </span>
+        </td>
+        <td>
+          <span class="directory-badge">
+            <i class="fas fa-folder me-1"></i>
+            {{ batch.directory }}
+          </span>
+        </td>
+        <td>
+          <span class="count-badge">
+            {{ batch.count }} 件
+          </span>
+        </td>
+        <td>
+          <a href="{{ url_for('log_detail', batch_id=batch.batch_id) }}" class="batch-link">
+            <i class="fas fa-eye me-1"></i>
+            詳細を見る
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state fade-in-up">
+  <div class="empty-icon">
+    <i class="fas fa-inbox"></i>
+  </div>
+  <h4 class="empty-title">アップロードログがありません</h4>
+  <p class="empty-subtitle">
+    まだアップロードが実行されていません。<br>
+    アップロードが実行されると、ここに履歴が表示されます。
+  </p>
+</div>
+{% endif %}
+
+<script>
+  // ページロード時のアニメーション
+  const observerOptions = {
+    threshold: 0.1,
+    rootMargin: '0px 0px -50px 0px'
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = '1';
+        entry.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, observerOptions);
+
+  document.querySelectorAll('.fade-in-up').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(30px)';
+    el.style.transition = 'all 0.6s ease-out';
+    observer.observe(el);
+  });
+</script>
+
 {% endblock %}

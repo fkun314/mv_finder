@@ -1,0 +1,586 @@
+{% extends "base.html" %}
+{% block title %}動画分析ダッシュボード - VideoHub{% endblock %}
+{% block content %}
+
+<style>
+  .dashboard-header {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border-left: 4px solid var(--primary-color);
+    text-align: center;
+  }
+
+  .dashboard-icon {
+    font-size: 3rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .stat-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s ease;
+    border-left: 4px solid var(--primary-color);
+  }
+
+  .stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .stat-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-description {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    opacity: 0.7;
+  }
+
+  .analysis-status {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--card-shadow);
+  }
+
+  .status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .status-item:last-child {
+    border-bottom: none;
+  }
+
+  .status-label {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .status-value {
+    color: var(--text-secondary);
+  }
+
+  .status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .status-running {
+    background: rgba(16, 163, 127, 0.1);
+    color: var(--success-color);
+  }
+
+  .status-waiting {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--accent-color);
+  }
+
+  .status-stopped {
+    background: rgba(100, 116, 139, 0.1);
+    color: var(--secondary-color);
+  }
+
+  .recent-analysis {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--card-shadow);
+  }
+
+  .analysis-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .analysis-table th,
+  .analysis-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .analysis-table th {
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--light-bg);
+  }
+
+  .quality-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .quality-excellent {
+    background: rgba(16, 163, 127, 0.1);
+    color: var(--success-color);
+  }
+
+  .quality-good {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--accent-color);
+  }
+
+  .quality-poor {
+    background: rgba(220, 38, 38, 0.1);
+    color: var(--danger-color);
+  }
+
+  .btn-action {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-action:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, var(--primary-color) 100%);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+    color: white;
+    text-decoration: none;
+  }
+
+  .btn-danger {
+    background: linear-gradient(135deg, var(--danger-color) 0%, #ef4444 100%);
+  }
+
+  .btn-danger:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, var(--danger-color) 100%);
+  }
+
+  .btn-danger {
+    background: linear-gradient(135deg, var(--danger-color) 0%, #ef4444 100%);
+  }
+
+  .btn-danger:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, var(--danger-color) 100%);
+  }
+
+  .chart-container {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--card-shadow);
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+  }
+
+  .analysis-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+  }
+
+  /* レスポンシブ対応 */
+  @media (max-width: 768px) {
+    .stats-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .analysis-controls {
+      flex-direction: column;
+    }
+
+    .analysis-table {
+      font-size: 0.8rem;
+    }
+
+    .analysis-table th,
+    .analysis-table td {
+      padding: 0.5rem;
+    }
+  }
+</style>
+
+<div class="dashboard-header fade-in-up">
+  <div class="dashboard-icon">
+    <i class="fas fa-chart-line"></i>
+  </div>
+  <h2 class="mb-3">動画分析ダッシュボード</h2>
+  <p class="text-muted mb-0">動画ライブラリの品質と統計情報を管理</p>
+</div>
+
+<!-- 統計カード -->
+<div class="stats-grid fade-in-up">
+  <div class="stat-card">
+    <div class="stat-number">{{ stats.total_analyzed or 0 }}</div>
+    <div class="stat-label">分析済み動画</div>
+    <div class="stat-description">総動画数に対する分析完了数</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-number">{{ "%.1f"|format(stats.avg_quality or 0) }}</div>
+    <div class="stat-label">平均品質スコア</div>
+    <div class="stat-description">100点満点での品質評価</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-number">{{ stats.low_quality or 0 }}</div>
+    <div class="stat-label">低品質動画</div>
+    <div class="stat-description">品質スコア30未満の動画数</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-number">{{ stats.no_audio or 0 }}</div>
+    <div class="stat-label">音声なし動画</div>
+    <div class="stat-description">音声トラックが検出されない動画</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-number">{{ stats.unique_files or 0 }}</div>
+    <div class="stat-label">ユニークファイル</div>
+    <div class="stat-description">重複を除いた実際のファイル数</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-number">{{ (stats.total_analyzed or 0) - (stats.unique_files or 0) }}</div>
+    <div class="stat-label">重複ファイル</div>
+    <div class="stat-description">同一ハッシュの重複動画数</div>
+  </div>
+</div>
+
+<!-- 分析進捗情報 -->
+{% if analysis_status.queue_size > 0 or analysis_status.current_analysis.video_id %}
+<div class="analysis-status fade-in-up" style="border-left: 4px solid var(--accent-color); background: rgba(245, 158, 11, 0.1);">
+  <h5 class="mb-3">
+    <i class="fas fa-cogs me-2"></i>
+    分析進行中
+  </h5>
+
+  <div class="status-item">
+    <span class="status-label">待機中の動画</span>
+    <span class="status-value" id="queueSize">{{ analysis_status.queue_size }}</span>
+  </div>
+
+  {% if analysis_status.current_analysis.video_id %}
+  <div class="status-item">
+    <span class="status-label">現在分析中</span>
+    <span class="status-value">{{ analysis_status.current_analysis.video_id[:12] }}...</span>
+  </div>
+
+  <div class="status-item">
+    <div class="progress-bar" style="flex: 1; margin-left: 1rem;">
+      <div class="progress-fill" style="width: {{ analysis_status.current_analysis.progress }}%"></div>
+    </div>
+    <span class="status-value">{{ analysis_status.current_analysis.progress }}%</span>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- 分析制御 -->
+<div class="analysis-controls fade-in-up">
+  <form method="POST" action="{{ url_for('start_analysis') }}" style="display: inline;">
+    <button type="submit" class="btn-action" onclick="return confirm('全動画の分析を開始しますか？時間がかかる場合があります。')">
+      <i class="fas fa-play"></i>
+      分析開始
+    </button>
+  </form>
+
+  {% if analysis_status.is_paused %}
+    <form method="POST" action="{{ url_for('resume_analysis') }}" style="display: inline;">
+      <button type="submit" class="btn-action" style="background: linear-gradient(135deg, var(--success-color) 0%, #22c55e 100%);">
+        <i class="fas fa-play"></i>
+        分析再開
+      </button>
+    </form>
+  {% else %}
+    <form method="POST" action="{{ url_for('pause_analysis') }}" style="display: inline;">
+      <button type="submit" class="btn-action" style="background: linear-gradient(135deg, var(--accent-color) 0%, #fbbf24 100%);">
+        <i class="fas fa-pause"></i>
+        分析一時停止
+      </button>
+    </form>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('reset_analysis') }}" style="display: inline;">
+    <button type="submit" class="btn-action btn-danger" onclick="return confirm('⚠️ 警告：全ての分析結果とシーンサムネイルが削除されます。\n\nこの操作は取り消せません。本当に実行しますか？')">
+      <i class="fas fa-trash-alt"></i>
+      全リセット
+    </button>
+  </form>
+
+  <a href="{{ url_for('duplicates_page') }}" class="btn-action">
+    <i class="fas fa-copy"></i>
+    重複管理
+  </a>
+
+  <button class="btn-action" onclick="refreshStatus()">
+    <i class="fas fa-sync-alt"></i>
+    状況更新
+  </button>
+</div>
+
+<!-- 分析状況 -->
+<div class="analysis-status fade-in-up">
+  <h5 class="mb-3">
+    <i class="fas fa-info-circle me-2"></i>
+    現在の分析状況
+  </h5>
+
+  <div class="status-item">
+    <span class="status-label">分析エンジン</span>
+    <span class="status-indicator" id="engineStatus">
+      {% if analysis_status.is_running %}
+        <span class="status-running">
+          <i class="fas fa-circle"></i>
+          実行中
+        </span>
+      {% else %}
+        <span class="status-stopped">
+          <i class="fas fa-circle"></i>
+          停止中
+        </span>
+      {% endif %}
+    </span>
+  </div>
+
+  <div class="status-item">
+    <span class="status-label">待機中の動画</span>
+    <span class="status-value" id="queueSize">{{ analysis_status.queue_size }}</span>
+  </div>
+
+  <div class="status-item">
+    <span class="status-label">現在分析中</span>
+    <span class="status-value" id="currentAnalysis">
+      {% if analysis_status.current_analysis.video_id %}
+        {{ analysis_status.current_analysis.video_id }}
+      {% else %}
+        なし
+      {% endif %}
+    </span>
+  </div>
+
+  <div class="status-item">
+    <span class="status-label">進捗</span>
+    <div style="flex: 1; margin-left: 1rem;">
+      <div class="progress-bar">
+        <div class="progress-fill" id="analysisProgress" style="width: {{ analysis_status.current_analysis.progress }}%"></div>
+      </div>
+      <div class="text-end mt-1">
+        <small id="progressText">{{ analysis_status.current_analysis.progress }}%</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 品質分布グラフ -->
+{% if quality_distribution %}
+<div class="chart-container fade-in-up">
+  <h5 class="mb-3">
+    <i class="fas fa-chart-pie me-2"></i>
+    品質分布
+  </h5>
+  <div class="row">
+    {% for item in quality_distribution %}
+      <div class="col-md-3 mb-3">
+        <div class="text-center">
+          <div class="stat-number">{{ item.count }}</div>
+          <div class="stat-label">{{ item.quality_range }}</div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- 最近の分析結果 -->
+{% if recent_analysis %}
+<div class="recent-analysis fade-in-up">
+  <h5 class="mb-3">
+    <i class="fas fa-history me-2"></i>
+    最近の分析結果
+  </h5>
+  <div class="table-responsive">
+    <table class="analysis-table">
+      <thead>
+        <tr>
+          <th>ファイル名</th>
+          <th>品質スコア</th>
+          <th>解像度</th>
+          <th>コーデック</th>
+          <th>ファイルサイズ</th>
+          <th>分析日時</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for analysis in recent_analysis %}
+        <tr>
+          <td>
+            <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              {{ analysis.filename or '不明' }}
+            </div>
+          </td>
+          <td>
+            {% set quality = analysis.quality_score or 0 %}
+            {% if quality >= 70 %}
+              <span class="quality-badge quality-excellent">{{ "%.1f"|format(quality) }}</span>
+            {% elif quality >= 40 %}
+              <span class="quality-badge quality-good">{{ "%.1f"|format(quality) }}</span>
+            {% else %}
+              <span class="quality-badge quality-poor">{{ "%.1f"|format(quality) }}</span>
+            {% endif %}
+          </td>
+          <td>{{ analysis.resolution or '不明' }}</td>
+          <td>{{ analysis.codec or '不明' }}</td>
+          <td>
+            {% if analysis.file_size %}
+              {{ "%.1f"|format(analysis.file_size / 1024 / 1024) }} MB
+            {% else %}
+              不明
+            {% endif %}
+          </td>
+          <td>
+            {% if analysis.analyzed_at %}
+              {{ analysis.analyzed_at | datetimeformat('%m/%d %H:%M') }}
+            {% else %}
+              不明
+            {% endif %}
+          </td>
+          <td>
+            <div class="d-flex gap-1">
+              <a href="{{ url_for('video_analysis_detail', video_id=analysis.video_id) }}"
+                 class="btn btn-sm btn-outline-primary" title="詳細表示">
+                <i class="fas fa-eye"></i>
+              </a>
+              <form method="POST" action="{{ url_for('reset_single_analysis', video_id=analysis.video_id) }}"
+                    style="display: inline;" onsubmit="return confirm('この動画の分析結果をリセットして再分析しますか？')">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="再分析">
+                  <i class="fas fa-redo"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<script>
+  // 分析状況の自動更新
+  function refreshStatus() {
+    fetch('{{ url_for("analysis_status") }}')
+      .then(response => response.json())
+      .then(data => {
+        // エンジン状況更新
+        const engineStatus = document.getElementById('engineStatus');
+        if (data.is_running) {
+          engineStatus.innerHTML = '<span class="status-running"><i class="fas fa-circle"></i> 実行中</span>';
+        } else {
+          engineStatus.innerHTML = '<span class="status-stopped"><i class="fas fa-circle"></i> 停止中</span>';
+        }
+        
+        // キューサイズ更新
+        document.getElementById('queueSize').textContent = data.queue_size;
+        
+        // 現在の分析更新
+        const currentAnalysis = document.getElementById('currentAnalysis');
+        if (data.current_analysis.video_id) {
+          currentAnalysis.textContent = data.current_analysis.video_id;
+        } else {
+          currentAnalysis.textContent = 'なし';
+        }
+        
+        // 進捗更新
+        const progress = data.current_analysis.progress || 0;
+        document.getElementById('analysisProgress').style.width = progress + '%';
+        document.getElementById('progressText').textContent = progress + '%';
+      })
+      .catch(error => {
+        console.error('状況更新エラー:', error);
+      });
+  }
+
+  // 5秒ごとに状況を更新
+  setInterval(refreshStatus, 5000);
+
+  // ページロード時のアニメーション
+  const observerOptions = {
+    threshold: 0.1,
+    rootMargin: '0px 0px -50px 0px'
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = '1';
+        entry.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, observerOptions);
+
+  document.querySelectorAll('.fade-in-up').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(30px)';
+    el.style.transition = 'all 0.6s ease-out';
+    observer.observe(el);
+  });
+
+  // 統計カードのアニメーション
+  document.querySelectorAll('.stat-card').forEach((card, index) => {
+    card.style.animationDelay = (index * 0.1) + 's';
+  });
+</script>
+
+{% endblock %}
