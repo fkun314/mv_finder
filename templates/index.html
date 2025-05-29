@@ -332,8 +332,19 @@
         <div class="thumbnail-container">
           <a href="{{ url_for('video_page', video_id=video.id) }}">
             <img src="{{ url_for('static', filename='thumbnails/' ~ video.thumb) }}"
-                 alt="{{ video.filename }}" loading="lazy">
+                 alt="{{ video.filename }}" loading="lazy" class="main-thumbnail">
           </a>
+
+          <!-- シーンスライドショー -->
+          <div class="scene-slideshow" id="slideshow-{{ video.id }}">
+            {% for i in range(20) %}
+              <img src="{{ url_for('static', filename='scenes/' ~ video.id ~ '_scene_' ~ i ~ '.jpg') }}"
+                   alt="Scene {{ i }}" loading="lazy" class="scene-image"
+                   onerror="this.style.display='none'">
+            {% endfor %}
+            <div class="slideshow-indicator" id="indicator-{{ video.id }}">1/20</div>
+          </div>
+
           <div class="duration-overlay">
             {{ video.duration | format_time }}
           </div>
@@ -495,14 +506,82 @@
 </div>
 
 <script>
+  // スライドショー管理オブジェクト
+  const slideshows = new Map();
+
+  class VideoSlideshow {
+    constructor(videoId) {
+      this.videoId = videoId;
+      this.currentIndex = 0;
+      this.interval = null;
+      this.slideshowElement = document.getElementById(`slideshow-${videoId}`);
+      this.indicatorElement = document.getElementById(`indicator-${videoId}`);
+      this.images = this.slideshowElement.querySelectorAll('.scene-image');
+      this.validImages = [];
+
+      // 有効な画像のみを取得
+      this.images.forEach((img, index) => {
+        img.onload = () => {
+          this.validImages.push({ element: img, index: index });
+          if (index === 0) img.classList.add('current');
+        };
+      });
+    }
+
+    start() {
+      if (this.validImages.length === 0) return;
+
+      this.slideshowElement.classList.add('active');
+      this.interval = setInterval(() => {
+        this.nextImage();
+      }, 500); // 0.5秒間隔で切り替え
+    }
+
+    stop() {
+      this.slideshowElement.classList.remove('active');
+      if (this.interval) {
+        clearInterval(this.interval);
+        this.interval = null;
+      }
+      // 最初の画像に戻す
+      this.validImages.forEach(img => img.element.classList.remove('current'));
+      if (this.validImages.length > 0) {
+        this.validImages[0].element.classList.add('current');
+        this.currentIndex = 0;
+        this.updateIndicator();
+      }
+    }
+
+    nextImage() {
+      if (this.validImages.length === 0) return;
+
+      this.validImages[this.currentIndex].element.classList.remove('current');
+      this.currentIndex = (this.currentIndex + 1) % this.validImages.length;
+      this.validImages[this.currentIndex].element.classList.add('current');
+      this.updateIndicator();
+    }
+
+    updateIndicator() {
+      if (this.indicatorElement && this.validImages.length > 0) {
+        this.indicatorElement.textContent = `${this.currentIndex + 1}/${this.validImages.length}`;
+      }
+    }
+  }
+
   // カードホバーエフェクト
   document.querySelectorAll('.video-card').forEach(card => {
+    const videoId = card.getAttribute('data-video-id');
+    const slideshow = new VideoSlideshow(videoId);
+    slideshows.set(videoId, slideshow);
+
     card.addEventListener('mouseenter', function() {
       this.style.transform = 'translateY(-8px) scale(1.02)';
+      slideshow.start();
     });
 
     card.addEventListener('mouseleave', function() {
       this.style.transform = 'translateY(0) scale(1)';
+      slideshow.stop();
     });
   });
 

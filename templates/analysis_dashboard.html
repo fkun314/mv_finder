@@ -190,6 +190,14 @@
     background: linear-gradient(135deg, #b91c1c 0%, var(--danger-color) 100%);
   }
 
+  .btn-danger {
+    background: linear-gradient(135deg, var(--danger-color) 0%, #ef4444 100%);
+  }
+
+  .btn-danger:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, var(--danger-color) 100%);
+  }
+
   .chart-container {
     background: white;
     border-radius: 15px;
@@ -256,37 +264,66 @@
     <div class="stat-label">分析済み動画</div>
     <div class="stat-description">総動画数に対する分析完了数</div>
   </div>
-  
+
   <div class="stat-card">
     <div class="stat-number">{{ "%.1f"|format(stats.avg_quality or 0) }}</div>
     <div class="stat-label">平均品質スコア</div>
     <div class="stat-description">100点満点での品質評価</div>
   </div>
-  
+
   <div class="stat-card">
     <div class="stat-number">{{ stats.low_quality or 0 }}</div>
     <div class="stat-label">低品質動画</div>
     <div class="stat-description">品質スコア30未満の動画数</div>
   </div>
-  
+
   <div class="stat-card">
     <div class="stat-number">{{ stats.no_audio or 0 }}</div>
     <div class="stat-label">音声なし動画</div>
     <div class="stat-description">音声トラックが検出されない動画</div>
   </div>
-  
+
   <div class="stat-card">
     <div class="stat-number">{{ stats.unique_files or 0 }}</div>
     <div class="stat-label">ユニークファイル</div>
     <div class="stat-description">重複を除いた実際のファイル数</div>
   </div>
-  
+
   <div class="stat-card">
     <div class="stat-number">{{ (stats.total_analyzed or 0) - (stats.unique_files or 0) }}</div>
     <div class="stat-label">重複ファイル</div>
     <div class="stat-description">同一ハッシュの重複動画数</div>
   </div>
 </div>
+
+<!-- 分析進捗情報 -->
+{% if analysis_status.queue_size > 0 or analysis_status.current_analysis.video_id %}
+<div class="analysis-status fade-in-up" style="border-left: 4px solid var(--accent-color); background: rgba(245, 158, 11, 0.1);">
+  <h5 class="mb-3">
+    <i class="fas fa-cogs me-2"></i>
+    分析進行中
+  </h5>
+
+  <div class="status-item">
+    <span class="status-label">待機中の動画</span>
+    <span class="status-value" id="queueSize">{{ analysis_status.queue_size }}</span>
+  </div>
+
+  {% if analysis_status.current_analysis.video_id %}
+  <div class="status-item">
+    <span class="status-label">現在分析中</span>
+    <span class="status-value">{{ analysis_status.current_analysis.video_id[:12] }}...</span>
+  </div>
+
+  <div class="status-item">
+    <div class="progress-bar" style="flex: 1; margin-left: 1rem;">
+      <div class="progress-fill" style="width: {{ analysis_status.current_analysis.progress }}%"></div>
+    </div>
+    <span class="status-value">{{ analysis_status.current_analysis.progress }}%</span>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
 
 <!-- 分析制御 -->
 <div class="analysis-controls fade-in-up">
@@ -296,12 +333,35 @@
       分析開始
     </button>
   </form>
-  
+
+  {% if analysis_status.is_paused %}
+    <form method="POST" action="{{ url_for('resume_analysis') }}" style="display: inline;">
+      <button type="submit" class="btn-action" style="background: linear-gradient(135deg, var(--success-color) 0%, #22c55e 100%);">
+        <i class="fas fa-play"></i>
+        分析再開
+      </button>
+    </form>
+  {% else %}
+    <form method="POST" action="{{ url_for('pause_analysis') }}" style="display: inline;">
+      <button type="submit" class="btn-action" style="background: linear-gradient(135deg, var(--accent-color) 0%, #fbbf24 100%);">
+        <i class="fas fa-pause"></i>
+        分析一時停止
+      </button>
+    </form>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('reset_analysis') }}" style="display: inline;">
+    <button type="submit" class="btn-action btn-danger" onclick="return confirm('⚠️ 警告：全ての分析結果とシーンサムネイルが削除されます。\n\nこの操作は取り消せません。本当に実行しますか？')">
+      <i class="fas fa-trash-alt"></i>
+      全リセット
+    </button>
+  </form>
+
   <a href="{{ url_for('duplicates_page') }}" class="btn-action">
     <i class="fas fa-copy"></i>
     重複管理
   </a>
-  
+
   <button class="btn-action" onclick="refreshStatus()">
     <i class="fas fa-sync-alt"></i>
     状況更新
@@ -314,7 +374,7 @@
     <i class="fas fa-info-circle me-2"></i>
     現在の分析状況
   </h5>
-  
+
   <div class="status-item">
     <span class="status-label">分析エンジン</span>
     <span class="status-indicator" id="engineStatus">
@@ -331,12 +391,12 @@
       {% endif %}
     </span>
   </div>
-  
+
   <div class="status-item">
     <span class="status-label">待機中の動画</span>
     <span class="status-value" id="queueSize">{{ analysis_status.queue_size }}</span>
   </div>
-  
+
   <div class="status-item">
     <span class="status-label">現在分析中</span>
     <span class="status-value" id="currentAnalysis">
@@ -347,7 +407,7 @@
       {% endif %}
     </span>
   </div>
-  
+
   <div class="status-item">
     <span class="status-label">進捗</span>
     <div style="flex: 1; margin-left: 1rem;">
@@ -430,16 +490,24 @@
           </td>
           <td>
             {% if analysis.analyzed_at %}
-              {{ analysis.analyzed_at.strftime('%m/%d %H:%M') }}
+              {{ analysis.analyzed_at | datetimeformat('%m/%d %H:%M') }}
             {% else %}
               不明
             {% endif %}
           </td>
           <td>
-            <a href="{{ url_for('video_analysis_detail', video_id=analysis.video_id) }}" 
-               class="btn btn-sm btn-outline-primary">
-              <i class="fas fa-eye"></i>
-            </a>
+            <div class="d-flex gap-1">
+              <a href="{{ url_for('video_analysis_detail', video_id=analysis.video_id) }}"
+                 class="btn btn-sm btn-outline-primary" title="詳細表示">
+                <i class="fas fa-eye"></i>
+              </a>
+              <form method="POST" action="{{ url_for('reset_single_analysis', video_id=analysis.video_id) }}"
+                    style="display: inline;" onsubmit="return confirm('この動画の分析結果をリセットして再分析しますか？')">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="再分析">
+                  <i class="fas fa-redo"></i>
+                </button>
+              </form>
+            </div>
           </td>
         </tr>
         {% endfor %}

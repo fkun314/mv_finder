@@ -39,7 +39,31 @@ app.jinja_env.globals.update(max=max, min=min)
 @app.template_filter('datetimeformat')
 def datetimeformat(value, fmt='%Y-%m-%d %H:%M:%S'):
     # view_history の viewed_at 等をフォーマットするためのフィルター
-    return datetime.fromtimestamp(value).strftime(fmt)
+    try:
+        if isinstance(value, str):
+            # 文字列の場合、datetimeオブジェクトに変換を試行
+            from datetime import datetime
+            try:
+                # ISO形式の文字列を試行
+                dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                return dt.strftime(fmt)
+            except:
+                # その他の形式を試行
+                try:
+                    dt = datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
+                    return dt.strftime(fmt)
+                except:
+                    return value  # 変換できない場合はそのまま返す
+        elif hasattr(value, 'strftime'):
+            # datetimeオブジェクトの場合
+            return value.strftime(fmt)
+        elif isinstance(value, (int, float)):
+            # UNIXタイムスタンプの場合
+            return datetime.fromtimestamp(float(value)).strftime(fmt)
+        else:
+            return str(value)
+    except Exception:
+        return str(value)
 
 
 # 設定：複数の動画ディレクトリ+
@@ -193,6 +217,11 @@ class VideoAnalyzer:
             quality_info = self._analyze_quality(file_path)
 
             self.current_analysis["progress"] = 70
+
+            # シーンサムネイル生成（新規追加）
+            self._generate_scene_thumbnails(file_path, video_id, basic_info['duration'])
+
+            self.current_analysis["progress"] = 85
 
             # 自動タグ生成
             auto_tags = self._generate_auto_tags(file_path, basic_info['duration'])
@@ -352,6 +381,39 @@ class VideoAnalyzer:
         except Exception as e:
             print(f"ハッシュ計算エラー: {e}")
             return ""
+
+    def _generate_scene_thumbnails(self, video_path: str, video_id: str, duration: float, num_scenes: int = 20):
+        """動画を21分割して最初の20枚のシーンサムネイル生成"""
+        scenes_dir = os.path.join("static", "scenes")
+        os.makedirs(scenes_dir, exist_ok=True)
+
+        if duration <= 0:
+            return
+
+        try:
+            # 21分割して最初の20枚を生成（最後の1枚は除外）
+            total_segments = num_scenes + 1  # 21分割
+            for i in range(num_scenes):  # 0-19の20枚
+                # タイムスタンプ計算：全体を21分割したときの各セグメントの開始点
+                timestamp = duration * i / total_segments
+                thumb_filename = f"{video_id}_scene_{i}.jpg"
+                thumb_filepath = os.path.join(scenes_dir, thumb_filename)
+
+                if not os.path.exists(thumb_filepath):
+                    if os.name == 'nt':
+                        video_path_safe = get_short_path_name(video_path)
+                    else:
+                        video_path_safe = video_path
+
+                    cmd = [
+                        "ffmpeg", "-ss", str(timestamp), "-i", video_path_safe,
+                        "-vframes", "1", "-vf", "scale=160:90", "-y", thumb_filepath
+                    ]
+                    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+                    print(f"生成: {thumb_filename} at {timestamp:.2f}s")
+
+        except Exception as e:
+            print(f"シーンサムネイル生成エラー: {e}")
 
     def _generate_auto_tags(self, file_path: str, duration: float) -> List[str]:
         """ファイル名と基本情報からタグを自動生成"""
@@ -566,41 +628,48 @@ def analysis_dashboard():
     """動画分析ダッシュボード"""
     conn = get_db_connection()
 
-    # 分析統計を取得
-    stats = conn.execute('''
-        SELECT 
-            COUNT(*) as total_analyzed,
-            AVG(quality_score) as avg_quality,
-            COUNT(CASE WHEN quality_score < 30 THEN 1 END) as low_quality,
-            COUNT(CASE WHEN has_audio = 0 THEN 1 END) as no_audio,
-            COUNT(DISTINCT file_hash) as unique_files
-        FROM video_analysis
-    ''').fetchone()
+    try:
+        # 分析統計を取得
+        stats = conn.execute('''
+            SELECT 
+                COUNT(*) as total_analyzed,
+                AVG(quality_score) as avg_quality,
+                COUNT(CASE WHEN quality_score < 30 THEN 1 END) as low_quality,
+                COUNT(CASE WHEN has_audio = 0 THEN 1 END) as no_audio,
+                COUNT(DISTINCT file_hash) as unique_files
+            FROM video_analysis
+        ''').fetchone()
 
-    # 最近の分析結果
-    recent_analysis = conn.execute('''
-        SELECT va.*, vm.filename 
-        FROM video_analysis va
-        LEFT JOIN video_metadata vm ON va.video_id = vm.video_id
-        ORDER BY va.analyzed_at DESC 
-        LIMIT 10
-    ''').fetchall()
+        # 最近の分析結果
+        recent_analysis = conn.execute('''
+            SELECT va.*, vm.filename 
+            FROM video_analysis va
+            LEFT JOIN video_metadata vm ON va.video_id = vm.video_id
+            ORDER BY va.analyzed_at DESC 
+            LIMIT 10
+        ''').fetchall()
 
-    # 品質分布
-    quality_distribution = conn.execute('''
-        SELECT 
-            CASE 
-                WHEN quality_score < 30 THEN '低品質'
-                WHEN quality_score < 60 THEN '普通'
-                WHEN quality_score < 80 THEN '高品質'
-                ELSE '最高品質'
-            END as quality_range,
-            COUNT(*) as count
-        FROM video_analysis
-        GROUP BY quality_range
-    ''').fetchall()
+        # 品質分布
+        quality_distribution = conn.execute('''
+            SELECT 
+                CASE 
+                    WHEN quality_score < 30 THEN '低品質'
+                    WHEN quality_score < 60 THEN '普通'
+                    WHEN quality_score < 80 THEN '高品質'
+                    ELSE '最高品質'
+                END as quality_range,
+                COUNT(*) as count
+            FROM video_analysis
+            GROUP BY quality_range
+        ''').fetchall()
 
-    conn.close()
+    except Exception as e:
+        print(f"分析ダッシュボードでエラー: {e}")
+        stats = None
+        recent_analysis = []
+        quality_distribution = []
+    finally:
+        conn.close()
 
     # 分析状況
     analysis_status = video_analyzer.get_analysis_status()
@@ -610,6 +679,74 @@ def analysis_dashboard():
                            recent_analysis=recent_analysis,
                            quality_distribution=quality_distribution,
                            analysis_status=analysis_status)
+
+
+@app.route('/analysis/reset', methods=['POST'])
+@login_required
+def reset_analysis():
+    """全ての分析結果をリセット"""
+    try:
+        with DB_LOCK:
+            conn = get_db_connection()
+
+            # 分析データをクリア
+            conn.execute('DELETE FROM video_analysis')
+
+            # シーンサムネイルファイルを削除
+            scenes_dir = os.path.join("static", "scenes")
+            if os.path.exists(scenes_dir):
+                import shutil
+                shutil.rmtree(scenes_dir)
+                os.makedirs(scenes_dir, exist_ok=True)
+
+            conn.commit()
+            conn.close()
+
+        flash("全ての分析結果をリセットしました。再分析を開始してください。")
+
+    except Exception as e:
+        flash(f"リセット中にエラーが発生しました: {e}")
+        print(f"分析リセットエラー: {e}")
+
+    return redirect(url_for('analysis_dashboard'))
+
+
+@app.route('/analysis/reset_single/<video_id>', methods=['POST'])
+@login_required
+def reset_single_analysis(video_id):
+    """個別動画の分析結果をリセット"""
+    try:
+        with DB_LOCK:
+            conn = get_db_connection()
+
+            # 個別の分析データをクリア
+            conn.execute('DELETE FROM video_analysis WHERE video_id = ?', (video_id,))
+
+            # 個別のシーンサムネイルファイルを削除
+            scenes_dir = os.path.join("static", "scenes")
+            if os.path.exists(scenes_dir):
+                for i in range(20):
+                    thumb_file = os.path.join(scenes_dir, f"{video_id}_scene_{i}.jpg")
+                    if os.path.exists(thumb_file):
+                        os.remove(thumb_file)
+
+            conn.commit()
+            conn.close()
+
+        # 再分析をキューに追加
+        videos = get_video_list()
+        video = next((v for v in videos if v["id"] == video_id), None)
+        if video:
+            video_analyzer.add_video_for_analysis(video_id, video["full_path"])
+            flash(f"動画の分析結果をリセットし、再分析をキューに追加しました。")
+        else:
+            flash("動画が見つかりませんでした。")
+
+    except Exception as e:
+        flash(f"リセット中にエラーが発生しました: {e}")
+        print(f"個別分析リセットエラー: {e}")
+
+    return redirect(request.referrer or url_for('analysis_dashboard'))
 
 
 @app.route('/analysis/start', methods=['POST'])
@@ -739,24 +876,43 @@ def resolve_duplicates():
 def video_analysis_detail(video_id):
     """個別動画の分析詳細"""
     conn = get_db_connection()
-    analysis = conn.execute(
-        'SELECT * FROM video_analysis WHERE video_id = ?',
-        (video_id,)
-    ).fetchone()
-    conn.close()
+    try:
+        analysis = conn.execute(
+            'SELECT * FROM video_analysis WHERE video_id = ?',
+            (video_id,)
+        ).fetchone()
+    except Exception as e:
+        print(f"分析データ取得エラー: {e}")
+        analysis = None
+    finally:
+        conn.close()
 
     if not analysis:
-        flash('分析データが見つかりません')
+        flash('分析データが見つかりません。まず動画分析を実行してください。')
         return redirect(url_for('video_page', video_id=video_id))
 
-    # JSON文字列をパース
-    if analysis['auto_tags']:
-        auto_tags = json.loads(analysis['auto_tags'])
-    else:
-        auto_tags = []
-
+    # データを辞書に変換し、JSONをパース
     analysis_data = dict(analysis)
-    analysis_data['auto_tags'] = auto_tags
+
+    try:
+        if analysis_data.get('auto_tags'):
+            analysis_data['auto_tags'] = json.loads(analysis_data['auto_tags'])
+        else:
+            analysis_data['auto_tags'] = []
+    except (json.JSONDecodeError, TypeError):
+        analysis_data['auto_tags'] = []
+
+    # 日時データの処理
+    if analysis_data.get('analyzed_at'):
+        try:
+            # 文字列の場合は datetime オブジェクトに変換
+            if isinstance(analysis_data['analyzed_at'], str):
+                from datetime import datetime
+                analysis_data['analyzed_at'] = datetime.fromisoformat(
+                    analysis_data['analyzed_at'].replace('Z', '+00:00'))
+        except Exception as e:
+            print(f"日時変換エラー: {e}")
+            # 変換できない場合はそのまま残す
 
     return render_template('video_analysis_detail.html',
                            video_id=video_id,
@@ -1417,7 +1573,7 @@ def get_video_duration(video_path):
         return 0
 
 
-# 動画を20分割してシーンサムネイル生成
+# 動画を21分割して最初の20枚のシーンサムネイル生成
 def generate_scene_thumbnails(video_path, video_id, num_scenes=20):
     scenes_dir = os.path.join("static", "scenes")
     os.makedirs(scenes_dir, exist_ok=True)
@@ -1425,16 +1581,44 @@ def generate_scene_thumbnails(video_path, video_id, num_scenes=20):
     scenes = []
     if duration <= 0:
         return scenes, duration
-    for i in range(num_scenes):
-        timestamp = duration * i / num_scenes
+
+    # 既存のサムネイルをチェック
+    existing_scenes = []
+    total_segments = num_scenes + 1  # 21分割
+
+    for i in range(num_scenes):  # 0-19の20枚
         thumb_filename = f"{video_id}_scene_{i}.jpg"
         thumb_filepath = os.path.join(scenes_dir, thumb_filename)
+        timestamp = duration * i / total_segments
+
+        if os.path.exists(thumb_filepath):
+            existing_scenes.append({
+                "thumb": thumb_filename,
+                "time": timestamp
+            })
+
+    # 既存のサムネイルがある場合はそれを使用
+    if len(existing_scenes) == num_scenes:
+        return existing_scenes, duration
+
+    # サムネイルが不足している場合は生成
+    for i in range(num_scenes):  # 0-19の20枚
+        timestamp = duration * i / total_segments
+        thumb_filename = f"{video_id}_scene_{i}.jpg"
+        thumb_filepath = os.path.join(scenes_dir, thumb_filename)
+
         if not os.path.exists(thumb_filepath):
+            if os.name == 'nt':
+                video_path_safe = get_short_path_name(video_path)
+            else:
+                video_path_safe = video_path
             cmd = [
-                "ffmpeg", "-ss", str(timestamp), "-i", video_path,
-                "-vframes", "1", "-y", thumb_filepath
+                "ffmpeg", "-ss", str(timestamp), "-i", video_path_safe,
+                "-vframes", "1", "-vf", "scale=160:90", "-y", thumb_filepath
             ]
             subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print(f"生成: {thumb_filename} at {timestamp:.2f}s")
+
         scenes.append({
             "thumb": thumb_filename,
             "time": timestamp
@@ -1774,7 +1958,7 @@ init_directory_hash_table()
 update_video_metadata()
 
 # バックグラウンド分析開始
-# video_analyzer.start_background_analysis()
+video_analyzer.start_background_analysis()
 
 # APSchedulerの設定
 scheduler = BackgroundScheduler()
