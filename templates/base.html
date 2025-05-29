@@ -365,16 +365,16 @@
                 <span class="user-info">
                   <i class="fas fa-user"></i> {{ current_user.id }}
                 </span>
-                <a class="btn btn-modern btn-primary-modern btn-sm" href="{{ url_for('upload_page') }}">
+                <a class="btn btn-modern btn-primary-modern btn-sm" href="{{ url_for('upload_page') }}" aria-label="Upload">
                   <i class="fas fa-upload"></i>
                 </a>
-                <a class="btn btn-modern btn-secondary-modern btn-sm" href="{{ url_for('history') }}">
+                <a class="btn btn-modern btn-secondary-modern btn-sm" href="{{ url_for('history') }}" aria-label="History">
                   <i class="fas fa-history"></i>
                 </a>
-                <a href="{{ url_for('trash') }}" class="btn btn-modern btn-secondary-modern btn-sm">
+                <a href="{{ url_for('trash') }}" class="btn btn-modern btn-secondary-modern btn-sm" aria-label="Trash">
                   <i class="fas fa-trash"></i>
                 </a>
-                <a href="{{ url_for('logout') }}" class="btn btn-modern btn-danger-modern btn-sm">
+                <a href="{{ url_for('logout') }}" class="btn btn-modern btn-danger-modern btn-sm" aria-label="Logout">
                   <i class="fas fa-sign-out-alt"></i>
                 </a>
               {% else %}
