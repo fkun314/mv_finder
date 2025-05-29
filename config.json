@@ -1,0 +1,80 @@
+{
+  "app": {
+    "secret_key": "your_secret_key_change_in_production",
+    "debug": true,
+    "host": "0.0.0.0",
+    "port": 5000
+  },
+  "video_directories": [
+    "/Volumes/4TBMobile/doc/doc",
+    "/Volumes/4TBMobile/doc/docFC",
+    "/Volumes/4TBMobile/doc/docLi",
+    "/Volumes/4TBMobile/media/media",
+    "/Volumes/4TBMobile/media/meFc",
+    "/Volumes/4TBMobile/media/meLi"
+  ],
+  "allowed_ips": [
+    "127.0.0.1",
+    "192.168.2.100",
+    "192.168.2.191",
+    "192.168.2.190",
+    "192.168.2.171"
+  ],
+  "database": {
+    "path": "local.sqlite"
+  },
+  "analysis": {
+    "scene_thumbnails_count": 20,
+    "quality_analysis_enabled": true,
+    "auto_analysis_enabled": true,
+    "analysis_schedule_hour": 5,
+    "analysis_schedule_minute": 0
+  },
+  "thumbnails": {
+    "width": 160,
+    "height": 90,
+    "main_thumbnail_time": "00:00:01"
+  },
+  "pagination": {
+    "videos_per_page": 100
+  },
+  "paths": {
+    "remove_directory_windows": "D:\\remove",
+    "remove_directory_unix": "~/remove",
+    "video_library_base": "~/video_library"
+  },
+  "move_destinations": {
+    "doc": {
+      "windows": "D:\\doc",
+      "unix": "~/video_library/doc"
+    },
+    "me": {
+      "windows": "D:\\me",
+      "unix": "~/video_library/me"
+    },
+    "doc/fc": {
+      "windows": "D:\\doc\\fc",
+      "unix": "~/video_library/doc/fc"
+    },
+    "doc/li": {
+      "windows": "D\\doc\\li",
+      "unix": "~/video_library/doc/li"
+    },
+    "me/fc": {
+      "windows": "D:\\me\\fc",
+      "unix": "~/video_library/me/fc"
+    },
+    "me/li": {
+      "windows": "D:\\me\\li",
+      "unix": "~/video_library/me/li"
+    },
+    "as": {
+      "windows": "D:\\as",
+      "unix": "~/video_library/as"
+    },
+    "iv": {
+      "windows": "D:\\iv",
+      "unix": "~/video_library/iv"
+    }
+  }
+}

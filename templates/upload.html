@@ -437,7 +437,7 @@
           </div>
           <div class="upload-text">ファイルをドラッグ&ドロップ</div>
           <div class="upload-hint">または、クリックしてファイルを選択</div>
-          <input type="file" id="videos" name="videos" multiple accept="video/*">
+          <input type="file" id="videos" name="videos" multiple accept="video/*,.mp4,.avi,.mkv,.mov,.webm">
         </div>
         <div id="fileList" class="file-list"></div>
       </div>
@@ -485,10 +485,21 @@
 </div>
 
 <script>
+  // グローバル変数
   let selectedFiles = [];
   let selectedDirectory = '';
 
-  // ディレクトリ選択
+  // DOM要素の取得
+  const uploadForm = document.getElementById('uploadForm');
+  const uploadArea = document.getElementById('uploadArea');
+  const fileInput = document.getElementById('videos');
+  const fileList = document.getElementById('fileList');
+  const directoryInput = document.getElementById('directoryInput');
+  const submitBtn = document.getElementById('submitBtn');
+  const uploadSummary = document.getElementById('uploadSummary');
+  const progressSection = document.getElementById('progressSection');
+
+  // ディレクトリ選択の処理
   document.querySelectorAll('.directory-option').forEach(option => {
     option.addEventListener('click', function() {
       // 他の選択を解除
@@ -499,30 +510,29 @@
       // 現在の選択をマーク
       this.classList.add('selected');
       selectedDirectory = this.dataset.value;
-      document.getElementById('directoryInput').value = selectedDirectory;
+      directoryInput.value = selectedDirectory;
       document.getElementById('selectedDirectory').textContent = selectedDirectory + '/';
 
+      console.log('Selected directory:', selectedDirectory);
       updateSubmitButton();
     });
   });
 
   // ファイルアップロード処理
-  const uploadArea = document.getElementById('uploadArea');
-  const fileInput = document.getElementById('videos');
-  const fileList = document.getElementById('fileList');
-
-  // クリックでファイル選択
-  uploadArea.addEventListener('click', () => {
-    fileInput.click();
+  uploadArea.addEventListener('click', (e) => {
+    if (e.target !== fileInput) {
+      fileInput.click();
+    }
   });
 
-  // ドラッグ&ドロップ
+  // ドラッグ&ドロップイベント
   uploadArea.addEventListener('dragover', (e) => {
     e.preventDefault();
     uploadArea.classList.add('dragover');
   });
 
-  uploadArea.addEventListener('dragleave', () => {
+  uploadArea.addEventListener('dragleave', (e) => {
+    e.preventDefault();
     uploadArea.classList.remove('dragover');
   });
 
@@ -532,27 +542,50 @@
     handleFiles(e.dataTransfer.files);
   });
 
-  // ファイル選択
+  // ファイル選択イベント
   fileInput.addEventListener('change', (e) => {
     handleFiles(e.target.files);
   });
 
+  // ファイル処理関数
   function handleFiles(files) {
+    console.log('Handling files:', files.length);
+
     for (let file of files) {
-      if (file.type.startsWith('video/')) {
+      // 動画ファイルかチェック
+      if (isVideoFile(file)) {
+        // 重複チェック
         if (!selectedFiles.find(f => f.name === file.name && f.size === file.size)) {
           selectedFiles.push(file);
           addFileToList(file);
+          console.log('Added file:', file.name);
+        } else {
+          console.log('Duplicate file:', file.name);
         }
+      } else {
+        alert(`${file.name} は動画ファイルではありません。`);
       }
     }
+
     updateSummary();
     updateSubmitButton();
   }
 
+  // 動画ファイル判定
+  function isVideoFile(file) {
+    const videoTypes = ['video/mp4', 'video/avi', 'video/mkv', 'video/mov', 'video/webm', 'video/x-msvideo'];
+    const videoExtensions = ['.mp4', '.avi', '.mkv', '.mov', '.webm', '.m4v'];
+
+    return videoTypes.includes(file.type) ||
+           videoExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+  }
+
+  // ファイルリストに追加
   function addFileToList(file) {
     const fileItem = document.createElement('div');
     fileItem.className = 'file-item';
+    fileItem.setAttribute('data-file-name', file.name);
+    fileItem.setAttribute('data-file-size', file.size);
 
     const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
 
@@ -566,51 +599,56 @@
           <div class="file-size">${sizeInMB} MB</div>
         </div>
       </div>
-      <button type="button" class="remove-file" onclick="removeFile('${file.name}', ${file.size})">
+      <button type="button" class="remove-file">
         <i class="fas fa-times"></i>
       </button>
     `;
 
+    // 削除ボタンのイベント
+    fileItem.querySelector('.remove-file').addEventListener('click', () => {
+      removeFile(file.name, file.size);
+    });
+
     fileList.appendChild(fileItem);
   }
 
+  // ファイル削除
   function removeFile(fileName, fileSize) {
+    console.log('Removing file:', fileName);
+
+    // 配列から削除
     selectedFiles = selectedFiles.filter(f => !(f.name === fileName && f.size === fileSize));
 
     // DOM から削除
-    const fileItems = fileList.querySelectorAll('.file-item');
-    fileItems.forEach(item => {
-      if (item.querySelector('.file-name').textContent === fileName) {
-        item.remove();
-      }
-    });
+    const fileItem = fileList.querySelector(`[data-file-name="${fileName}"][data-file-size="${fileSize}"]`);
+    if (fileItem) {
+      fileItem.remove();
+    }
 
     updateSummary();
     updateSubmitButton();
   }
 
+  // サマリー更新
   function updateSummary() {
-    const summary = document.getElementById('uploadSummary');
-    const fileCount = document.getElementById('fileCount');
-    const totalSize = document.getElementById('totalSize');
-
     const count = selectedFiles.length;
     const size = selectedFiles.reduce((total, file) => total + file.size, 0);
     const sizeInMB = (size / (1024 * 1024)).toFixed(2);
 
-    fileCount.textContent = count;
-    totalSize.textContent = sizeInMB + ' MB';
+    document.getElementById('fileCount').textContent = count;
+    document.getElementById('totalSize').textContent = sizeInMB + ' MB';
 
     if (count > 0) {
-      summary.classList.add('show');
+      uploadSummary.classList.add('show');
     } else {
-      summary.classList.remove('show');
+      uploadSummary.classList.remove('show');
     }
   }
 
+  // 送信ボタン更新
   function updateSubmitButton() {
-    const submitBtn = document.getElementById('submitBtn');
     const canSubmit = selectedFiles.length > 0 && selectedDirectory;
+    console.log('Can submit:', canSubmit, 'Files:', selectedFiles.length, 'Directory:', selectedDirectory);
 
     submitBtn.disabled = !canSubmit;
 
@@ -627,48 +665,50 @@
     }
   }
 
-  // フォーム送信
-  document.getElementById('uploadForm').addEventListener('submit', function(e) {
+  // フォーム送信処理
+  uploadForm.addEventListener('submit', function(e) {
     e.preventDefault();
 
-    if (selectedFiles.length === 0 || !selectedDirectory) {
-      alert('ファイルとアップロード先を選択してください。');
+    console.log('Form submitted');
+    console.log('Selected files:', selectedFiles.length);
+    console.log('Selected directory:', selectedDirectory);
+
+    if (selectedFiles.length === 0) {
+      alert('動画ファイルを選択してください。');
       return;
     }
 
-  // フォーム送信
-  document.getElementById('uploadForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    if (selectedFiles.length === 0 || !selectedDirectory) {
-      alert('ファイルとアップロード先を選択してください。');
+    if (!selectedDirectory) {
+      alert('アップロード先を選択してください。');
       return;
     }
 
-    // プログレス表示
-    document.getElementById('progressSection').classList.add('show');
-    document.querySelector('.upload-form').style.display = 'none';
-
-    // FormData作成
+    // FormDataを作成（フォームから自動作成されるFileListを使用）
     const formData = new FormData();
     formData.append('directory', selectedDirectory);
+
+    // 選択されたファイルを追加
     selectedFiles.forEach(file => {
       formData.append('videos', file);
     });
 
-    // XMLHttpRequest でアップロード
+    // 進捗表示
+    progressSection.classList.add('show');
+    document.querySelector('.upload-form').style.display = 'none';
+
+    // XMLHttpRequestでアップロード
     const xhr = new XMLHttpRequest();
 
-    xhr.upload.onprogress = function(e) {
+    xhr.upload.addEventListener('progress', function(e) {
       if (e.lengthComputable) {
         const percentComplete = (e.loaded / e.total) * 100;
         document.getElementById('progressBar').style.width = percentComplete + '%';
         document.getElementById('progressText').textContent =
           `${Math.round(percentComplete)}% - ${selectedFiles.length}件中 アップロード中...`;
       }
-    };
+    });
 
-    xhr.onload = function() {
+    xhr.addEventListener('load', function() {
       if (xhr.status === 200) {
         document.getElementById('progressBar').style.width = '100%';
         document.getElementById('progressText').textContent = 'アップロード完了！リダイレクト中...';
@@ -678,16 +718,16 @@
         }, 1500);
       } else {
         alert('アップロードに失敗しました。');
-        document.getElementById('progressSection').classList.remove('show');
+        progressSection.classList.remove('show');
         document.querySelector('.upload-form').style.display = 'block';
       }
-    };
+    });
 
-    xhr.onerror = function() {
+    xhr.addEventListener('error', function() {
       alert('アップロードエラーが発生しました。');
-      document.getElementById('progressSection').classList.remove('show');
+      progressSection.classList.remove('show');
       document.querySelector('.upload-form').style.display = 'block';
-    };
+    });
 
     xhr.open('POST', "{{ url_for('start_upload') }}");
     xhr.send(formData);
@@ -699,23 +739,11 @@
 
   // ページ離脱警告
   window.addEventListener('beforeunload', function(e) {
-    if (selectedFiles.length > 0 && !document.getElementById('progressSection').classList.contains('show')) {
+    if (selectedFiles.length > 0 && !progressSection.classList.contains('show')) {
       e.preventDefault();
-      e.returnValue = '';
+      e.returnValue = 'アップロード予定のファイルがあります。ページを離れますか？';
     }
   });
-
-  // ファイルタイプバリデーション
-  function validateFileType(file) {
-    const allowedTypes = ['video/mp4', 'video/avi', 'video/mkv', 'video/mov', 'video/webm'];
-    return allowedTypes.includes(file.type) || file.name.match(/\.(mp4|avi|mkv|mov|webm)$/i);
-  }
-
-  // 最大ファイルサイズチェック（例：1GB）
-  function validateFileSize(file) {
-    const maxSize = 1024 * 1024 * 1024; // 1GB
-    return file.size <= maxSize;
-  }
 
   // アニメーション効果
   const observerOptions = {

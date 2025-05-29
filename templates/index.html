@@ -11,31 +11,6 @@
     border-left: 4px solid var(--primary-color);
   }
 
-  .bulk-actions-panel {
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(251, 191, 36, 0.1) 100%);
-    border-radius: 15px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-    border: 2px solid rgba(245, 158, 11, 0.3);
-    display: none;
-  }
-
-  .bulk-actions-panel.show {
-    display: block;
-    animation: slideDown 0.3s ease-out;
-  }
-
-  @keyframes slideDown {
-    from {
-      opacity: 0;
-      transform: translateY(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
   .video-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -57,14 +32,82 @@
     box-shadow: var(--card-shadow-hover);
   }
 
-  .video-card.selected {
-    ring: 3px solid var(--primary-color);
-    transform: translateY(-5px);
-  }
-
   .card-header-custom {
     position: relative;
     overflow: hidden;
+  }
+
+  .thumbnail-container {
+    position: relative;
+    width: 100%;
+    padding-top: 56.25%;
+    overflow: hidden;
+    border-radius: 0;
+  }
+
+  .main-thumbnail {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 0.3s ease;
+  }
+
+  /* シーンスライドショー */
+  .scene-slideshow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .scene-slideshow.active {
+    opacity: 1;
+  }
+
+  .scene-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .scene-image.current {
+    opacity: 1;
+  }
+
+  .slideshow-indicator {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    border-radius: 6px;
+    font-weight: 600;
+    backdrop-filter: blur(5px);
+  }
+
+  .duration-overlay {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.6) 100%);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    font-weight: 600;
   }
 
   .thumbnail-overlay {
@@ -152,90 +195,6 @@
     align-items: center;
   }
 
-  .checkbox-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .checkbox-custom {
-    width: 18px;
-    height: 18px;
-    border: 2px solid var(--border-color);
-    border-radius: 4px;
-    appearance: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    position: relative;
-  }
-
-  .checkbox-custom:checked {
-    background: var(--primary-color);
-    border-color: var(--primary-color);
-  }
-
-  .checkbox-custom:checked::after {
-    content: '✓';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: white;
-    font-size: 12px;
-    font-weight: bold;
-  }
-
-  .processing-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(5px);
-    z-index: 9999;
-    display: none;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-  }
-
-  .processing-content {
-    background: white;
-    padding: 3rem;
-    border-radius: 20px;
-    text-align: center;
-    max-width: 400px;
-    animation: fadeInScale 0.3s ease-out;
-  }
-
-  @keyframes fadeInScale {
-    from {
-      opacity: 0;
-      transform: scale(0.8);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
-  .spinner {
-    width: 50px;
-    height: 50px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid var(--primary-color);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 1rem;
-  }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-
   .stats-bar {
     display: flex;
     justify-content: center;
@@ -273,10 +232,6 @@
     .stats-bar {
       flex-direction: column;
       gap: 1rem;
-    }
-
-    .bulk-actions-panel {
-      padding: 1rem;
     }
   }
 </style>
@@ -330,6 +285,7 @@
     <div class="video-card" data-video-id="{{ video.id }}">
       <div class="card-header-custom">
         <div class="thumbnail-container">
+          <!-- メインサムネイル -->
           <a href="{{ url_for('video_page', video_id=video.id) }}">
             <img src="{{ url_for('static', filename='thumbnails/' ~ video.thumb) }}"
                  alt="{{ video.filename }}" loading="lazy" class="main-thumbnail">
@@ -496,19 +452,8 @@
 </nav>
 {% endif %}
 
-<!-- 処理中オーバーレイ -->
-<div id="processingOverlay" class="processing-overlay">
-  <div class="processing-content">
-    <div class="spinner"></div>
-    <h4 class="mb-2">処理中...</h4>
-    <p class="text-muted">しばらくお待ちください</p>
-  </div>
-</div>
-
 <script>
-  // スライドショー管理オブジェクト
-  const slideshows = new Map();
-
+  // スライドショー管理クラス
   class VideoSlideshow {
     constructor(videoId) {
       this.videoId = videoId;
@@ -516,14 +461,24 @@
       this.interval = null;
       this.slideshowElement = document.getElementById(`slideshow-${videoId}`);
       this.indicatorElement = document.getElementById(`indicator-${videoId}`);
-      this.images = this.slideshowElement.querySelectorAll('.scene-image');
+      this.images = this.slideshowElement ? this.slideshowElement.querySelectorAll('.scene-image') : [];
       this.validImages = [];
 
       // 有効な画像のみを取得
       this.images.forEach((img, index) => {
         img.onload = () => {
-          this.validImages.push({ element: img, index: index });
-          if (index === 0) img.classList.add('current');
+          if (!this.validImages.find(v => v.index === index)) {
+            this.validImages.push({ element: img, index: index });
+            this.validImages.sort((a, b) => a.index - b.index);
+            if (index === 0) {
+              img.classList.add('current');
+              this.updateIndicator();
+            }
+          }
+        };
+
+        img.onerror = () => {
+          img.style.display = 'none';
         };
       });
     }
@@ -534,7 +489,7 @@
       this.slideshowElement.classList.add('active');
       this.interval = setInterval(() => {
         this.nextImage();
-      }, 500); // 0.5秒間隔で切り替え
+      }, 400); // 0.4秒間隔で切り替え（少し高速化）
     }
 
     stop() {
@@ -568,19 +523,34 @@
     }
   }
 
+  // スライドショー管理オブジェクト
+  const slideshows = new Map();
+
   // カードホバーエフェクト
   document.querySelectorAll('.video-card').forEach(card => {
     const videoId = card.getAttribute('data-video-id');
     const slideshow = new VideoSlideshow(videoId);
     slideshows.set(videoId, slideshow);
 
+    let hoverTimeout;
+
     card.addEventListener('mouseenter', function() {
       this.style.transform = 'translateY(-8px) scale(1.02)';
-      slideshow.start();
+
+      // 少し遅延してからスライドショーを開始
+      hoverTimeout = setTimeout(() => {
+        slideshow.start();
+      }, 500);
     });
 
     card.addEventListener('mouseleave', function() {
       this.style.transform = 'translateY(0) scale(1)';
+
+      // タイムアウトをクリア
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+      }
+
       slideshow.stop();
     });
   });

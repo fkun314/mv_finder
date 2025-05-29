@@ -1,0 +1,557 @@
+{% extends "base.html" %}
+{% block title %}設定管理 - VideoHub{% endblock %}
+{% block content %}
+
+<style>
+  .settings-header {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border-left: 4px solid var(--primary-color);
+    text-align: center;
+  }
+
+  .settings-icon {
+    font-size: 3rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+  }
+
+  .settings-form {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 2rem;
+  }
+
+  .settings-section {
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .settings-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+
+  .section-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .section-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+  }
+
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .form-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  .form-control-settings {
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: var(--light-bg);
+    width: 100%;
+  }
+
+  .form-control-settings:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+    background: white;
+  }
+
+  .form-textarea {
+    min-height: 120px;
+    resize: vertical;
+  }
+
+  .form-check-settings {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .form-check-input-settings {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 6px;
+    border: 2px solid var(--border-color);
+    transition: all 0.3s ease;
+  }
+
+  .form-check-input-settings:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+  }
+
+  .form-check-label-settings {
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+
+  .form-help {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+    line-height: 1.4;
+  }
+
+  .btn-save {
+    background: linear-gradient(135deg, var(--success-color) 0%, #22c55e 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 1rem 2rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    margin-right: 1rem;
+  }
+
+  .btn-save:hover {
+    background: linear-gradient(135deg, #15803d 0%, var(--success-color) 100%);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .btn-reset {
+    background: linear-gradient(135deg, var(--danger-color) 0%, #ef4444 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 1rem 2rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    margin-right: 1rem;
+  }
+
+  .btn-reset:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, var(--danger-color) 100%);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .btn-secondary-settings {
+    background: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 1rem 2rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    text-decoration: none;
+  }
+
+  .btn-secondary-settings:hover {
+    background: #475569;
+    transform: translateY(-2px);
+    color: white;
+    text-decoration: none;
+  }
+
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+  }
+
+  .alert-warning-settings {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(251, 191, 36, 0.1) 100%);
+    border: 2px solid rgba(245, 158, 11, 0.3);
+    border-radius: 15px;
+    padding: 1rem;
+    margin-bottom: 2rem;
+    color: var(--accent-color);
+  }
+
+  /* レスポンシブ対応 */
+  @media (max-width: 768px) {
+    .settings-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .settings-form {
+      padding: 1.5rem;
+    }
+
+    .btn-save, .btn-reset, .btn-secondary-settings {
+      width: 100%;
+      margin-bottom: 0.5rem;
+      margin-right: 0;
+    }
+  }
+</style>
+
+<div class="settings-header fade-in-up">
+  <div class="settings-icon">
+    <i class="fas fa-cogs"></i>
+  </div>
+  <h2 class="mb-3">設定管理</h2>
+  <p class="text-muted mb-0">システムの設定をカスタマイズします</p>
+</div>
+
+<div class="alert-warning-settings fade-in-up">
+  <i class="fas fa-exclamation-triangle me-2"></i>
+  <strong>注意:</strong> 設定変更後はサーバーの再起動が必要な場合があります。重要な設定を変更する前にバックアップを取ることをお勧めします。
+</div>
+
+<form method="POST" action="{{ url_for('save_settings') }}" class="settings-form fade-in-up">
+  <!-- アプリケーション設定 -->
+  <div class="settings-section">
+    <h4 class="section-title">
+      <div class="section-icon">
+        <i class="fas fa-server"></i>
+      </div>
+      アプリケーション設定
+    </h4>
+    
+    <div class="settings-grid">
+      <div class="form-group">
+        <label class="form-label" for="secret_key">シークレットキー</label>
+        <input type="password" class="form-control-settings" id="secret_key" name="secret_key" 
+               value="{{ config.app.secret_key }}" required>
+        <div class="form-help">セッション暗号化に使用される秘密鍵（本番環境では必ず変更してください）</div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label" for="host">ホスト</label>
+        <input type="text" class="form-control-settings" id="host" name="host" 
+               value="{{ config.app.host }}" required>
+        <div class="form-help">サーバーがバインドするIPアドレス</div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label" for="port">ポート</label>
+        <input type="number" class="form-control-settings" id="port" name="port" 
+               value="{{ config.app.port }}" min="1" max="65535" required>
+        <div class="form-help">サーバーが使用するポート番号</div>
+      </div>
+      
+      <div class="form-group">
+        <div class="form-check-settings">
+          <input type="checkbox" class="form-check-input-settings" id="debug" name="debug" 
+                 {% if config.app.debug %}checked{% endif %}>
+          <label class="form-check-label-settings" for="debug">デバッグモード</label>
+        </div>
+        <div class="form-help">開発時のみ有効にしてください（本番環境では無効にする）</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 動画ディレクトリ設定 -->
+  <div class="settings-section">
+    <h4 class="section-title">
+      <div class="section-icon">
+        <i class="fas fa-folder-open"></i>
+      </div>
+      動画ディレクトリ
+    </h4>
+    
+    <div class="form-group">
+      <label class="form-label" for="video_directories">監視対象ディレクトリ</label>
+      <textarea class="form-control-settings form-textarea" id="video_directories" name="video_directories" required>{% for dir in config.video_directories %}{{ dir }}
+{% endfor %}</textarea>
+      <div class="form-help">動画ファイルを検索するディレクトリのパス（1行に1つずつ入力）</div>
+    </div>
+  </div>
+
+  <!-- セキュリティ設定 -->
+  <div class="settings-section">
+    <h4 class="section-title">
+      <div class="section-icon">
+        <i class="fas fa-shield-alt"></i>
+      </div>
+      セキュリティ設定
+    </h4>
+    
+    <div class="form-group">
+      <label class="form-label" for="allowed_ips">許可IPアドレス</label>
+      <textarea class="form-control-settings form-textarea" id="allowed_ips" name="allowed_ips" required>{% for ip in config.allowed_ips %}{{ ip }}
+{% endfor %}</textarea>
+      <div class="form-help">アクセスを許可するIPアドレス（1行に1つずつ入力）</div>
+    </div>
+  </div>
+
+  <!-- データベース設定 -->
+  <div class="settings-section">
+    <h4 class="section-title">
+      <div class="section-icon">
+        <i class="fas fa-database"></i>
+      </div>
+      データベース設定
+    </h4>
+    
+    <div class="form-group">
+      <label class="form-label" for="database_path">データベースファイルパス</label>
+      <input type="text" class="form-control-settings" id="database_path" name="database_path" 
+             value="{{ config.database.path }}" required>
+      <div class="form-help">SQLiteデータベースファイルの保存パス</div>
+    </div>
+  </div>
+
+  <!-- 分析設定 -->
+  <div class="settings-section">
+    <h4 class="section-title">
+      <div class="section-icon">
+        <i class="fas fa-chart-line"></i>
+      </div>
+      動画分析設定
+    </h4>
+    
+    <div class="settings-grid">
+      <div class="form-group">
+        <label class="form-label" for="scene_thumbnails_count">シーンサムネイル数</label>
+        <input type="number" class="form-control-settings" id="scene_thumbnails_count" name="scene_thumbnails_count" 
+               value="{{ config.analysis.scene_thumbnails_count }}" min="5" max="50" required>
+        <div class="form-help">各動画に生成するシーンサムネイルの枚数</div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label" for="analysis_schedule_hour">自動分析時刻（時）</label>
+        <input type="number" class="form-control-settings" id="analysis_schedule_hour" name="analysis_schedule_hour" 
+               value="{{ config.analysis.analysis_schedule_hour }}" min="0" max="23" required>
+        <div class="form-help">定期分析を実行する時刻（24時間形式）</div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label" for="analysis_schedule_minute">自動分析時刻（分）</label>
+        <input type="number" class="form-control-settings" id="analysis_schedule_minute" name="analysis_schedule_minute" 
+               value="{{ config.analysis.analysis_schedule_minute }}" min="0" max="59" required>
+        <div class="form-help">定期分析を実行する分</div>
+      </div>
+    </div>
+    
+    <div class="settings-grid">
+      <div class="form-group">
+        <div class="form-check-settings">
+          <input type="checkbox" class="form-check-input-settings" id="quality_analysis_enabled" name="quality_analysis_enabled" 
+                 {% if config.analysis.quality_analysis_enabled %}checked{% endif %}>
+          <label class="form-check-label-settings" for="quality_analysis_enabled">品質分析を有効にする</label>
+        </div>
+        <div class="form-help">動画の品質スコア計算を行う</div>
+      </div>
+      
+      <div class="form-group">
+        <div class="form-check-settings">
+          <input type="checkbox" class="form-check-input-settings" id="auto_analysis_enabled" name="auto_analysis_enabled" 
+                 {% if config.analysis.auto_analysis_enabled %}checked{% endif %}>
+          <label class="form-check-label-settings" for="auto_analysis_enabled">自動分析を有効にする</label>
+        </div>
+        <div class="form-help">新しい動画の自動分析を行う</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- サムネイル設定 -->
+  <div class="settings-section">
+    <h4 class="section-title">
+      <div class="section-icon">
+        <i class="fas fa-image"></i>
+      </div>
+      サムネイル設定
+    </h4>
+    
+    <div class="settings-grid">
+      <div class="form-group">
+        <label class="form-label" for="thumbnail_width">サムネイル幅</label>
+        <input type="number" class="form-control-settings" id="thumbnail_width" name="thumbnail_width" 
+               value="{{ config.thumbnails.width }}" min="80" max="640" required>
+        <div class="form-help">生成するサムネイルの幅（ピクセル）</div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label" for="thumbnail_height">サムネイル高さ</label>
+        <input type="number" class="form-control-settings" id="thumbnail_height" name="thumbnail_height" 
+               value="{{ config.thumbnails.height }}" min="60" max="480" required>
+        <div class="form-help">生成するサムネイルの高さ（ピクセル）</div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label" for="main_thumbnail_time">メインサムネイル時刻</label>
+        <input type="text" class="form-control-settings" id="main_thumbnail_time" name="main_thumbnail_time" 
+               value="{{ config.thumbnails.main_thumbnail_time }}" pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}" required>
+        <div class="form-help">メインサムネイルを抽出する時刻（HH:MM:SS形式）</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ページネーション設定 -->
+  <div class="settings-section">
+    <h4 class="section-title">
+      <div class="section-icon">
+        <i class="fas fa-list"></i>
+      </div>
+      表示設定
+    </h4>
+    
+    <div class="form-group">
+      <label class="form-label" for="videos_per_page">1ページあたりの動画数</label>
+      <input type="number" class="form-control-settings" id="videos_per_page" name="videos_per_page" 
+             value="{{ config.pagination.videos_per_page }}" min="10" max="500" required>
+      <div class="form-help">動画一覧ページに表示する動画の数</div>
+    </div>
+  </div>
+
+  <!-- パス設定 -->
+  <div class="settings-section">
+    <h4 class="section-title">
+      <div class="section-icon">
+        <i class="fas fa-folder"></i>
+      </div>
+      パス設定
+    </h4>
+    
+    <div class="settings-grid">
+      <div class="form-group">
+        <label class="form-label" for="remove_directory_windows">削除ディレクトリ（Windows）</label>
+        <input type="text" class="form-control-settings" id="remove_directory_windows" name="remove_directory_windows" 
+               value="{{ config.paths.remove_directory_windows }}">
+        <div class="form-help">Windows環境での削除ファイル移動先</div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label" for="remove_directory_unix">削除ディレクトリ（Unix/Linux/macOS）</label>
+        <input type="text" class="form-control-settings" id="remove_directory_unix" name="remove_directory_unix" 
+               value="{{ config.paths.remove_directory_unix }}">
+        <div class="form-help">Unix系環境での削除ファイル移動先</div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label" for="video_library_base">動画ライブラリベースパス</label>
+        <input type="text" class="form-control-settings" id="video_library_base" name="video_library_base" 
+               value="{{ config.paths.video_library_base }}">
+        <div class="form-help">動画ライブラリの基本パス</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 移動先設定 -->
+  <div class="settings-section">
+    <h4 class="section-title">
+      <div class="section-icon">
+        <i class="fas fa-arrows-alt"></i>
+      </div>
+      動画移動先設定
+    </h4>
+    
+    {% for dest, paths in config.move_destinations.items() %}
+    <div class="settings-grid">
+      <div class="form-group">
+        <label class="form-label" for="move_dest_{{ dest }}_windows">{{ dest }}（Windows）</label>
+        <input type="text" class="form-control-settings" id="move_dest_{{ dest }}_windows" name="move_dest_{{ dest }}_windows" 
+               value="{{ paths.windows }}">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label" for="move_dest_{{ dest }}_unix">{{ dest }}（Unix/Linux/macOS）</label>
+        <input type="text" class="form-control-settings" id="move_dest_{{ dest }}_unix" name="move_dest_{{ dest }}_unix" 
+               value="{{ paths.unix }}">
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- ボタン -->
+  <div class="text-center">
+    <button type="submit" class="btn-save">
+      <i class="fas fa-save me-2"></i>
+      設定を保存
+    </button>
+    
+    <button type="button" class="btn-reset" onclick="resetSettings()">
+      <i class="fas fa-undo me-2"></i>
+      デフォルトに戻す
+    </button>
+    
+    <a href="{{ url_for('index') }}" class="btn-secondary-settings">
+      <i class="fas fa-arrow-left me-2"></i>
+      戻る
+    </a>
+  </div>
+</form>
+
+<script>
+  function resetSettings() {
+    if (confirm('⚠️ 警告：全ての設定がデフォルト値にリセットされます。\n\nこの操作は取り消せません。本当に実行しますか？')) {
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '{{ url_for("reset_settings") }}';
+      document.body.appendChild(form);
+      form.submit();
+    }
+  }
+
+  // フォームバリデーション
+  document.querySelector('form').addEventListener('submit', function(e) {
+    const requiredFields = this.querySelectorAll('[required]');
+    let isValid = true;
+
+    requiredFields.forEach(field => {
+      if (!field.value.trim()) {
+        isValid = false;
+        field.style.borderColor = 'var(--danger-color)';
+      } else {
+        field.style.borderColor = '#e2e8f0';
+      }
+    });
+
+    if (!isValid) {
+      e.preventDefault();
+      alert('必須項目をすべて入力してください。');
+    }
+  });
+
+  // ページロード時のアニメーション
+  const observerOptions = {
+    threshold: 0.1,
+    rootMargin: '0px 0px -50px 0px'
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = '1';
+        entry.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, observerOptions);
+
+  document.querySelectorAll('.fade-in-up').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(30px)';
+    el.style.transition = 'all 0.6s ease-out';
+    observer.observe(el);
+  });
+</script>
+
+{% endblock %}
