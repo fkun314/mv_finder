@@ -317,7 +317,7 @@
               <form method="GET" action="{{ url_for('index') }}" class="row g-2">
                 <div class="col-md-4">
                   <input type="text" class="form-control form-control-modern" name="q"
-                         placeholder="🔍 検索..." value="{{ q if q is defined }}">
+                         placeholder="🔍 検索..." value="{{ q if q is defined }}" aria-label="検索">
                 </div>
                 <div class="col-md-2">
                   <select name="sort" class="form-control form-control-modern">
