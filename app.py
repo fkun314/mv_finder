@@ -1568,31 +1568,82 @@ def delete_directory(video_id):
     return redirect(url_for("index"))
 
 
-# 視聴履歴ページ
+# app.pyの視聴履歴ページを修正
+
 @app.route('/history')
 @login_required
 def history():
     conn = get_db_connection()
-    rows = conn.execute('''
-        SELECT vh.video_id, vh.viewed_at, vm.filename, vm.duration
-          FROM view_history vh
-          JOIN video_metadata vm ON vh.video_id = vm.video_id
-         WHERE vh.username = ?
-         ORDER BY vh.viewed_at DESC
-         LIMIT 100
-    ''', (current_user.id,)).fetchall()
-    conn.close()
+    try:
+        rows = conn.execute('''
+            SELECT vh.video_id, vh.viewed_at, vm.filename, vm.duration, vm.full_path
+              FROM view_history vh
+              JOIN video_metadata vm ON vh.video_id = vm.video_id
+             WHERE vh.username = ?
+             ORDER BY vh.viewed_at DESC
+             LIMIT 100
+        ''', (current_user.id,)).fetchall()
+    except Exception as e:
+        print(f"履歴取得エラー: {e}")
+        rows = []
+    finally:
+        conn.close()
 
     history_items = []
+    thumb_dir = os.path.join("static", "thumbnails")
+    os.makedirs(thumb_dir, exist_ok=True)
+
+    # 統計計算用の変数
+    total_duration = 0
+    unique_dates = set()
+
     for row in rows:
-        history_items.append({
-            'id': row['video_id'],
-            'filename': row['filename'],
-            'duration': row['duration'],
-            'viewed_at': datetime.fromtimestamp(row['viewed_at']).strftime('%Y-%m-%d %H:%M:%S'),
-            'thumb': f"{row['video_id']}.jpg"
-        })
-    return render_template('history.html', history_items=history_items)
+        try:
+            # サムネイル生成（存在しない場合）
+            thumb_filename = f"{row['video_id']}.jpg"
+            thumb_path = os.path.join(thumb_dir, thumb_filename)
+
+            if thumb_filename not in THUMBNAIL_CACHE and os.path.exists(row['full_path']):
+                try:
+                    generate_thumbnail(row['full_path'], thumb_path)
+                    THUMBNAIL_CACHE.add(thumb_filename)
+                except Exception as e:
+                    print(f"サムネイル生成エラー ({row['full_path']}): {e}")
+
+            # 日時のフォーマット
+            viewed_datetime = datetime.fromtimestamp(row['viewed_at'])
+            viewed_date_str = viewed_datetime.strftime('%Y-%m-%d')
+
+            # 統計用データ収集
+            if row['duration']:
+                total_duration += row['duration']
+            unique_dates.add(viewed_date_str)
+
+            history_items.append({
+                'id': row['video_id'],
+                'filename': row['filename'] or '不明なファイル',
+                'duration': row['duration'] or 0,
+                'viewed_at': viewed_datetime.strftime('%Y-%m-%d %H:%M:%S'),
+                'viewed_at_iso': viewed_datetime.isoformat(),  # JavaScript用
+                'viewed_date': viewed_date_str,  # 日付のみ
+                'thumb': thumb_filename,
+                'full_path': row['full_path']  # デバッグ用
+            })
+        except Exception as e:
+            print(f"履歴アイテム処理エラー: {e}")
+            continue
+
+    # 統計情報を計算
+    stats = {
+        'total_count': len(history_items),
+        'total_duration_minutes': int(total_duration / 60) if total_duration > 0 else 0,
+        'unique_days': len(unique_dates)
+    }
+
+    print(f"履歴件数: {len(history_items)}")  # デバッグ用
+    print(f"統計: {stats}")  # デバッグ用
+
+    return render_template('history.html', history_items=history_items, stats=stats)
 
 
 # ゴミ箱
@@ -1604,9 +1655,15 @@ def upload_page():
 
 
 # POST を受け付けて非同期にアップロードを開始
+# start_upload ルートを修正
 @app.route('/start_upload', methods=['POST'])
 @login_required
 def start_upload():
+    # アップロード開始前に分析を一時停止
+    if video_analyzer.is_running and not video_analyzer.is_paused:
+        video_analyzer.pause_analysis()
+        print("アップロード開始: 動画分析を一時停止しました")
+
     dest_key = request.form['directory']
     dest_dir = UPLOAD_DIRS.get(dest_key)
     if not dest_dir:
@@ -1617,6 +1674,13 @@ def start_upload():
     if not files:
         flash("ファイルを選択してください。")
         return redirect(url_for('upload_page'))
+
+    # 新規タグを取得
+    new_tags_input = request.form.get('new_tags', '').strip()
+    new_tags = []
+    if new_tags_input:
+        # カンマ区切りでタグを分割し、空白を除去
+        new_tags = [tag.strip() for tag in new_tags_input.split(',') if tag.strip()]
 
     # --- 1) バッチID とタイムスタンプを用意 ---
     batch_id = str(uuid4())
@@ -1630,11 +1694,17 @@ def start_upload():
     ''', (batch_id, current_user.id, dest_key, len(files), ts))
 
     # --- 3) ファイルを保存しつつ upload_files に書き込み ---
+    uploaded_video_ids = []
     for f in files:
         original = f.filename
         save_path = UPLOAD_DIRS[dest_key]
         unique = unique_filename(save_path, original)
-        f.save(os.path.join(save_path, unique))
+        full_path = os.path.join(save_path, unique)
+        f.save(full_path)
+
+        # ビデオIDを生成（アップロード時に）
+        video_id = hashlib.md5(full_path.encode('utf-8')).hexdigest()
+        uploaded_video_ids.append(video_id)
 
         conn.execute('''
             INSERT INTO upload_files (batch_id, filename)
@@ -1644,8 +1714,19 @@ def start_upload():
     conn.commit()
     conn.close()
 
-    flash(f"{len(files)} 件のアップロードが完了しました。")
+    # メタデータを更新（新しいファイルをDBに反映）
     update_video_metadata()
+
+    # 新規タグがある場合は、アップロードした動画全てに適用
+    if new_tags:
+        for video_id in uploaded_video_ids:
+            for tag in new_tags:
+                add_video_tag(video_id, tag)
+
+        flash(f"{len(files)} 件のアップロードが完了しました。タグ '{', '.join(new_tags)}' を追加しました。")
+    else:
+        flash(f"{len(files)} 件のアップロードが完了しました。")
+
     # アップロード進捗画面へリダイレクト
     return redirect(url_for('upload_progress'))
 

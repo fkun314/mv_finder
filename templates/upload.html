@@ -365,6 +365,86 @@
     color: var(--text-primary);
   }
 
+  /* タグ入力セクション */
+  .tags-input-container {
+    background: rgba(245, 158, 11, 0.1);
+    border-radius: 15px;
+    padding: 1.5rem;
+    border-left: 4px solid var(--accent-color);
+  }
+
+  .tags-input {
+    border: 2px solid #fbbf24;
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+    background: white;
+    width: 100%;
+  }
+
+  .tags-input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 0.2rem rgba(245, 158, 11, 0.25);
+    outline: none;
+  }
+
+  .tags-examples {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .tag-example {
+    background: rgba(245, 158, 11, 0.2);
+    color: #92400e;
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+  }
+
+  .tag-example:hover {
+    background: var(--accent-color);
+    color: white;
+    transform: translateY(-1px);
+  }
+
+  .tags-preview {
+    margin-top: 1rem;
+    display: none;
+  }
+
+  .tags-preview.show {
+    display: block;
+  }
+
+  .preview-tag {
+    background: linear-gradient(135deg, var(--accent-color) 0%, #f59e0b 100%);
+    color: white;
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+    display: inline-block;
+    animation: fadeInScale 0.3s ease-out;
+  }
+
+  @keyframes fadeInScale {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
   /* レスポンシブ対応 */
   @media (max-width: 768px) {
     .upload-header {
@@ -385,6 +465,10 @@
 
     .directory-grid {
       grid-template-columns: 1fr;
+    }
+
+    .tags-examples {
+      justify-content: center;
     }
   }
 </style>
@@ -442,6 +526,34 @@
         <div id="fileList" class="file-list"></div>
       </div>
 
+      <!-- タグ入力セクション（新規追加） -->
+      <div class="form-section">
+        <h5 class="section-title">
+          <i class="fas fa-tags"></i>
+          一括タグ設定（オプション）
+        </h5>
+        <div class="tags-input-container">
+          <input type="text"
+                 name="new_tags"
+                 id="newTagsInput"
+                 class="tags-input"
+                 placeholder="タグをカンマ区切りで入力（例: アニメ, 2024年, お気に入り）">
+          <div class="tags-examples">
+            <span class="tag-example" onclick="addExampleTag('アニメ')">アニメ</span>
+            <span class="tag-example" onclick="addExampleTag('映画')">映画</span>
+            <span class="tag-example" onclick="addExampleTag('音楽')">音楽</span>
+            <span class="tag-example" onclick="addExampleTag('ゲーム')">ゲーム</span>
+            <span class="tag-example" onclick="addExampleTag('2024年')">2024年</span>
+            <span class="tag-example" onclick="addExampleTag('お気に入り')">お気に入り</span>
+            <span class="tag-example" onclick="addExampleTag('高画質')">高画質</span>
+          </div>
+          <div id="tagsPreview" class="tags-preview">
+            <small class="text-muted mb-2 d-block">設定されるタグ:</small>
+            <div id="previewTags"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- アップロード概要 -->
       <div id="uploadSummary" class="upload-summary">
         <h6 class="mb-3">
@@ -459,6 +571,10 @@
         <div class="summary-item">
           <span>アップロード先:</span>
           <span id="selectedDirectory">未選択</span>
+        </div>
+        <div class="summary-item">
+          <span>設定タグ数:</span>
+          <span id="tagCount">0</span>
         </div>
       </div>
 
@@ -488,6 +604,7 @@
   // グローバル変数
   let selectedFiles = [];
   let selectedDirectory = '';
+  let currentTags = [];
 
   // DOM要素の取得
   const uploadForm = document.getElementById('uploadForm');
@@ -498,6 +615,60 @@
   const submitBtn = document.getElementById('submitBtn');
   const uploadSummary = document.getElementById('uploadSummary');
   const progressSection = document.getElementById('progressSection');
+  const newTagsInput = document.getElementById('newTagsInput');
+  const tagsPreview = document.getElementById('tagsPreview');
+  const previewTags = document.getElementById('previewTags');
+
+  // タグ入力の処理
+  newTagsInput.addEventListener('input', function() {
+    const inputValue = this.value.trim();
+    if (inputValue) {
+      currentTags = inputValue.split(',').map(tag => tag.trim()).filter(tag => tag);
+    } else {
+      currentTags = [];
+    }
+    updateTagsPreview();
+    updateSummary();
+  });
+
+  // タグプレビューの更新
+  function updateTagsPreview() {
+    if (currentTags.length > 0) {
+      previewTags.innerHTML = currentTags.map(tag =>
+        `<span class="preview-tag">${tag}</span>`
+      ).join('');
+      tagsPreview.classList.add('show');
+    } else {
+      tagsPreview.classList.remove('show');
+    }
+  }
+
+  // 例タグの追加
+  function addExampleTag(tagName) {
+    const currentValue = newTagsInput.value.trim();
+    let newValue;
+
+    if (currentValue) {
+      // 既に入力されている場合は、重複チェックして追加
+      const existingTags = currentValue.split(',').map(tag => tag.trim());
+      if (!existingTags.includes(tagName)) {
+        newValue = currentValue + ', ' + tagName;
+      } else {
+        return; // 既に存在する場合は何もしない
+      }
+    } else {
+      newValue = tagName;
+    }
+
+    newTagsInput.value = newValue;
+    newTagsInput.dispatchEvent(new Event('input'));
+
+    // エフェクト
+    event.target.style.transform = 'scale(1.1)';
+    setTimeout(() => {
+      event.target.style.transform = 'scale(1)';
+    }, 150);
+  }
 
   // ディレクトリ選択の処理
   document.querySelectorAll('.directory-option').forEach(option => {
@@ -637,6 +808,7 @@
 
     document.getElementById('fileCount').textContent = count;
     document.getElementById('totalSize').textContent = sizeInMB + ' MB';
+    document.getElementById('tagCount').textContent = currentTags.length;
 
     if (count > 0) {
       uploadSummary.classList.add('show');
@@ -653,9 +825,10 @@
     submitBtn.disabled = !canSubmit;
 
     if (canSubmit) {
+      const tagText = currentTags.length > 0 ? ` (${currentTags.length}タグ付き)` : '';
       submitBtn.innerHTML = `
         <i class="fas fa-upload"></i>
-        ${selectedFiles.length}件をアップロード開始
+        ${selectedFiles.length}件をアップロード開始${tagText}
       `;
     } else {
       submitBtn.innerHTML = `
@@ -672,6 +845,7 @@
     console.log('Form submitted');
     console.log('Selected files:', selectedFiles.length);
     console.log('Selected directory:', selectedDirectory);
+    console.log('Current tags:', currentTags);
 
     if (selectedFiles.length === 0) {
       alert('動画ファイルを選択してください。');
@@ -683,9 +857,10 @@
       return;
     }
 
-    // FormDataを作成（フォームから自動作成されるFileListを使用）
+    // FormDataを作成
     const formData = new FormData();
     formData.append('directory', selectedDirectory);
+    formData.append('new_tags', currentTags.join(', '));
 
     // 選択されたファイルを追加
     selectedFiles.forEach(file => {
@@ -703,15 +878,17 @@
       if (e.lengthComputable) {
         const percentComplete = (e.loaded / e.total) * 100;
         document.getElementById('progressBar').style.width = percentComplete + '%';
+        const tagText = currentTags.length > 0 ? ` (${currentTags.length}タグ設定中)` : '';
         document.getElementById('progressText').textContent =
-          `${Math.round(percentComplete)}% - ${selectedFiles.length}件中 アップロード中...`;
+          `${Math.round(percentComplete)}% - ${selectedFiles.length}件中 アップロード中${tagText}...`;
       }
     });
 
     xhr.addEventListener('load', function() {
       if (xhr.status === 200) {
         document.getElementById('progressBar').style.width = '100%';
-        document.getElementById('progressText').textContent = 'アップロード完了！リダイレクト中...';
+        const tagText = currentTags.length > 0 ? 'タグ設定完了！' : '';
+        document.getElementById('progressText').textContent = `アップロード完了！${tagText} リダイレクト中...`;
 
         setTimeout(() => {
           window.location.href = "{{ url_for('index') }}";
