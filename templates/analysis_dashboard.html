@@ -112,6 +112,16 @@
     color: var(--secondary-color);
   }
 
+  .status-paused {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--accent-color);
+  }
+
+  .status-analyzing {
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--primary-color);
+  }
+
   .recent-analysis {
     background: white;
     border-radius: 15px;
@@ -190,14 +200,6 @@
     background: linear-gradient(135deg, #b91c1c 0%, var(--danger-color) 100%);
   }
 
-  .btn-danger {
-    background: linear-gradient(135deg, var(--danger-color) 0%, #ef4444 100%);
-  }
-
-  .btn-danger:hover {
-    background: linear-gradient(135deg, #b91c1c 0%, var(--danger-color) 100%);
-  }
-
   .chart-container {
     background: white;
     border-radius: 15px;
@@ -228,6 +230,37 @@
     flex-wrap: wrap;
   }
 
+  .realtime-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-left: auto;
+  }
+
+  .realtime-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--success-color);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+
+  .current-video-info {
+    background: rgba(37, 99, 235, 0.05);
+    border: 1px solid rgba(37, 99, 235, 0.1);
+    border-radius: 10px;
+    padding: 1rem;
+    margin-top: 0.5rem;
+  }
+
   /* レスポンシブ対応 */
   @media (max-width: 768px) {
     .stats-grid {
@@ -255,6 +288,10 @@
   </div>
   <h2 class="mb-3">動画分析ダッシュボード</h2>
   <p class="text-muted mb-0">動画ライブラリの品質と統計情報を管理</p>
+  <div class="realtime-indicator mt-2">
+    <div class="realtime-dot"></div>
+    <span id="last-updated">リアルタイム更新</span>
+  </div>
 </div>
 
 <!-- 統計カード -->
@@ -296,35 +333,6 @@
   </div>
 </div>
 
-<!-- 分析進捗情報 -->
-{% if analysis_status.queue_size > 0 or analysis_status.current_analysis.video_id %}
-<div class="analysis-status fade-in-up" style="border-left: 4px solid var(--accent-color); background: rgba(245, 158, 11, 0.1);">
-  <h5 class="mb-3">
-    <i class="fas fa-cogs me-2"></i>
-    分析進行中
-  </h5>
-
-  <div class="status-item">
-    <span class="status-label">待機中の動画</span>
-    <span class="status-value" id="queueSize">{{ analysis_status.queue_size }}</span>
-  </div>
-
-  {% if analysis_status.current_analysis.video_id %}
-  <div class="status-item">
-    <span class="status-label">現在分析中</span>
-    <span class="status-value">{{ analysis_status.current_analysis.video_id[:12] }}...</span>
-  </div>
-
-  <div class="status-item">
-    <div class="progress-bar" style="flex: 1; margin-left: 1rem;">
-      <div class="progress-fill" style="width: {{ analysis_status.current_analysis.progress }}%"></div>
-    </div>
-    <span class="status-value">{{ analysis_status.current_analysis.progress }}%</span>
-  </div>
-  {% endif %}
-</div>
-{% endif %}
-
 <!-- 分析制御 -->
 <div class="analysis-controls fade-in-up">
   <form method="POST" action="{{ url_for('start_analysis') }}" style="display: inline;">
@@ -334,21 +342,19 @@
     </button>
   </form>
 
-  {% if analysis_status.is_paused %}
-    <form method="POST" action="{{ url_for('resume_analysis') }}" style="display: inline;">
-      <button type="submit" class="btn-action" style="background: linear-gradient(135deg, var(--success-color) 0%, #22c55e 100%);">
-        <i class="fas fa-play"></i>
-        分析再開
-      </button>
-    </form>
-  {% else %}
-    <form method="POST" action="{{ url_for('pause_analysis') }}" style="display: inline;">
-      <button type="submit" class="btn-action" style="background: linear-gradient(135deg, var(--accent-color) 0%, #fbbf24 100%);">
-        <i class="fas fa-pause"></i>
-        分析一時停止
-      </button>
-    </form>
-  {% endif %}
+  <form method="POST" action="{{ url_for('pause_analysis') }}" style="display: inline;">
+    <button type="submit" class="btn-action" id="pause-btn" style="background: linear-gradient(135deg, var(--accent-color) 0%, #fbbf24 100%);">
+      <i class="fas fa-pause"></i>
+      分析一時停止
+    </button>
+  </form>
+
+  <form method="POST" action="{{ url_for('resume_analysis') }}" style="display: inline;">
+    <button type="submit" class="btn-action" id="resume-btn" style="background: linear-gradient(135deg, var(--success-color) 0%, #22c55e 100%);">
+      <i class="fas fa-play"></i>
+      分析再開
+    </button>
+  </form>
 
   <form method="POST" action="{{ url_for('reset_analysis') }}" style="display: inline;">
     <button type="submit" class="btn-action btn-danger" onclick="return confirm('⚠️ 警告：全ての分析結果とシーンサムネイルが削除されます。\n\nこの操作は取り消せません。本当に実行しますか？')">
@@ -361,31 +367,33 @@
     <i class="fas fa-copy"></i>
     重複管理
   </a>
-
-  <button class="btn-action" onclick="refreshStatus()">
-    <i class="fas fa-sync-alt"></i>
-    状況更新
-  </button>
 </div>
 
-<!-- 分析状況 -->
+<!-- リアルタイム分析状況 -->
 <div class="analysis-status fade-in-up">
   <h5 class="mb-3">
-    <i class="fas fa-info-circle me-2"></i>
+    <i class="fas fa-cogs me-2"></i>
     現在の分析状況
   </h5>
 
   <div class="status-item">
     <span class="status-label">分析エンジン</span>
-    <span class="status-indicator" id="engineStatus">
+    <span class="status-indicator" id="engine-status">
       {% if analysis_status.is_running %}
-        <span class="status-running">
-          <i class="fas fa-circle"></i>
-          実行中
-        </span>
+        {% if analysis_status.is_paused %}
+          <span class="status-paused">
+            <i class="fas fa-pause-circle"></i>
+            一時停止中
+          </span>
+        {% else %}
+          <span class="status-running">
+            <i class="fas fa-play-circle"></i>
+            実行中
+          </span>
+        {% endif %}
       {% else %}
         <span class="status-stopped">
-          <i class="fas fa-circle"></i>
+          <i class="fas fa-stop-circle"></i>
           停止中
         </span>
       {% endif %}
@@ -394,31 +402,39 @@
 
   <div class="status-item">
     <span class="status-label">待機中の動画</span>
-    <span class="status-value" id="queueSize">{{ analysis_status.queue_size }}</span>
+    <span class="status-value" id="queue-size">{{ analysis_status.queue_size }}</span>
   </div>
 
   <div class="status-item">
-    <span class="status-label">現在分析中</span>
-    <span class="status-value" id="currentAnalysis">
-      {% if analysis_status.current_analysis.video_id %}
-        {{ analysis_status.current_analysis.video_id }}
-      {% else %}
-        なし
-      {% endif %}
+    <span class="status-label">分析ステータス</span>
+    <span class="status-indicator" id="analysis-status-indicator">
+      <span class="status-{{ 'analyzing' if analysis_status.current_analysis.video_id else 'waiting' }}">
+        <i class="fas fa-{{ 'spinner fa-spin' if analysis_status.current_analysis.video_id else 'clock' }}"></i>
+        {{ analysis_status.current_analysis.status or '待機中' }}
+      </span>
     </span>
   </div>
 
-  <div class="status-item">
-    <span class="status-label">進捗</span>
-    <div style="flex: 1; margin-left: 1rem;">
-      <div class="progress-bar">
-        <div class="progress-fill" id="analysisProgress" style="width: {{ analysis_status.current_analysis.progress }}%"></div>
-      </div>
-      <div class="text-end mt-1">
-        <small id="progressText">{{ analysis_status.current_analysis.progress }}%</small>
+  {% if analysis_status.current_analysis.video_id %}
+  <div class="current-video-info">
+    <div class="status-item mb-2">
+      <span class="status-label">現在分析中の動画</span>
+      <span class="status-value" id="current-video-id">{{ analysis_status.current_analysis.video_id }}</span>
+    </div>
+
+    <div class="status-item">
+      <span class="status-label">進捗</span>
+      <div style="flex: 1; margin-left: 1rem;">
+        <div class="progress-bar">
+          <div class="progress-fill" id="analysis-progress" style="width: {{ analysis_status.current_analysis.progress }}%"></div>
+        </div>
+        <div class="text-end mt-1">
+          <small id="progress-text">{{ analysis_status.current_analysis.progress }}%</small>
+        </div>
       </div>
     </div>
   </div>
+  {% endif %}
 </div>
 
 <!-- 品質分布グラフ -->
@@ -518,42 +534,141 @@
 {% endif %}
 
 <script>
-  // 分析状況の自動更新
-  function refreshStatus() {
+  let updateInterval;
+
+  // リアルタイム分析状況更新
+  function updateAnalysisStatus() {
     fetch('{{ url_for("analysis_status") }}')
       .then(response => response.json())
       .then(data => {
         // エンジン状況更新
-        const engineStatus = document.getElementById('engineStatus');
+        const engineStatus = document.getElementById('engine-status');
+        let statusHtml = '';
+
         if (data.is_running) {
-          engineStatus.innerHTML = '<span class="status-running"><i class="fas fa-circle"></i> 実行中</span>';
+          if (data.is_paused) {
+            statusHtml = '<span class="status-paused"><i class="fas fa-pause-circle"></i> 一時停止中</span>';
+          } else {
+            statusHtml = '<span class="status-running"><i class="fas fa-play-circle"></i> 実行中</span>';
+          }
         } else {
-          engineStatus.innerHTML = '<span class="status-stopped"><i class="fas fa-circle"></i> 停止中</span>';
+          statusHtml = '<span class="status-stopped"><i class="fas fa-stop-circle"></i> 停止中</span>';
         }
-        
+        engineStatus.innerHTML = statusHtml;
+
         // キューサイズ更新
-        document.getElementById('queueSize').textContent = data.queue_size;
-        
-        // 現在の分析更新
-        const currentAnalysis = document.getElementById('currentAnalysis');
+        document.getElementById('queue-size').textContent = data.queue_size;
+
+        // 分析ステータス更新
+        const statusIndicator = document.getElementById('analysis-status-indicator');
+        const status = data.current_analysis.status || '待機中';
+        let statusClass = 'status-waiting';
+        let iconClass = 'fas fa-clock';
+
         if (data.current_analysis.video_id) {
-          currentAnalysis.textContent = data.current_analysis.video_id;
-        } else {
-          currentAnalysis.textContent = 'なし';
+          statusClass = 'status-analyzing';
+          iconClass = 'fas fa-spinner fa-spin';
         }
-        
-        // 進捗更新
-        const progress = data.current_analysis.progress || 0;
-        document.getElementById('analysisProgress').style.width = progress + '%';
-        document.getElementById('progressText').textContent = progress + '%';
+
+        statusIndicator.innerHTML = `<span class="${statusClass}"><i class="${iconClass}"></i> ${status}</span>`;
+
+        // 現在分析中の動画情報を更新
+        const currentVideoElement = document.getElementById('current-video-id');
+        if (currentVideoElement) {
+          if (data.current_analysis.video_id) {
+            currentVideoElement.textContent = data.current_analysis.video_id;
+
+            // 進捗更新
+            const progress = data.current_analysis.progress || 0;
+            const progressBar = document.getElementById('analysis-progress');
+            const progressText = document.getElementById('progress-text');
+
+            if (progressBar && progressText) {
+              progressBar.style.width = progress + '%';
+              progressText.textContent = progress + '%';
+            }
+          }
+        } else if (data.current_analysis.video_id) {
+          // 分析中の動画情報エリアを動的に追加
+          const analysisStatus = document.querySelector('.analysis-status');
+          const currentVideoInfo = document.createElement('div');
+          currentVideoInfo.className = 'current-video-info';
+          currentVideoInfo.innerHTML = `
+            <div class="status-item mb-2">
+              <span class="status-label">現在分析中の動画</span>
+              <span class="status-value" id="current-video-id">${data.current_analysis.video_id}</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">進捗</span>
+              <div style="flex: 1; margin-left: 1rem;">
+                <div class="progress-bar">
+                  <div class="progress-fill" id="analysis-progress" style="width: ${data.current_analysis.progress || 0}%"></div>
+                </div>
+                <div class="text-end mt-1">
+                  <small id="progress-text">${data.current_analysis.progress || 0}%</small>
+                </div>
+              </div>
+            </div>
+          `;
+          analysisStatus.appendChild(currentVideoInfo);
+        }
+
+        // ボタンの状態更新
+        const pauseBtn = document.getElementById('pause-btn');
+        const resumeBtn = document.getElementById('resume-btn');
+
+        if (pauseBtn && resumeBtn) {
+          if (data.is_paused) {
+            pauseBtn.disabled = true;
+            resumeBtn.disabled = false;
+          } else {
+            pauseBtn.disabled = !data.is_running;
+            resumeBtn.disabled = true;
+          }
+        }
+
+        // 最終更新時刻
+        const now = new Date();
+        const timeString = now.getHours().toString().padStart(2, '0') + ':' +
+                          now.getMinutes().toString().padStart(2, '0') + ':' +
+                          now.getSeconds().toString().padStart(2, '0');
+        document.getElementById('last-updated').textContent = `最終更新: ${timeString}`;
       })
       .catch(error => {
-        console.error('状況更新エラー:', error);
+        console.error('分析状況の更新に失敗:', error);
+        document.getElementById('last-updated').textContent = '更新エラー';
       });
   }
 
-  // 5秒ごとに状況を更新
-  setInterval(refreshStatus, 5000);
+  // ページロード時に開始
+  document.addEventListener('DOMContentLoaded', function() {
+    // 初回実行
+    updateAnalysisStatus();
+
+    // 1秒間隔で更新
+    updateInterval = setInterval(updateAnalysisStatus, 1000);
+  });
+
+  // ページを離れる時に更新停止
+  window.addEventListener('beforeunload', function() {
+    if (updateInterval) {
+      clearInterval(updateInterval);
+    }
+  });
+
+  // ページの可視性変更時の処理
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+      // ページが非表示の時は更新を停止
+      if (updateInterval) {
+        clearInterval(updateInterval);
+      }
+    } else {
+      // ページが表示された時は更新を再開
+      updateAnalysisStatus();
+      updateInterval = setInterval(updateAnalysisStatus, 1000);
+    }
+  });
 
   // ページロード時のアニメーション
   const observerOptions = {

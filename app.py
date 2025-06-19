@@ -32,64 +32,124 @@ from typing import List, Dict, Optional, Tuple
 DB_LOCK = threading.Lock()
 
 app = Flask(__name__)
-app.secret_key = "your_secret_key"  # 本番では十分に複雑な値にしてください
+
+# 設定ファイルの管理
+CONFIG_FILE = "config.json"
+
+
+def load_config():
+    """設定ファイルを読み込む"""
+    default_config = {
+        "app": {
+            "secret_key": "your_secret_key_change_in_production",
+            "debug": True,
+            "host": "0.0.0.0",
+            "port": 5000
+        },
+        "video_directories": [
+            "/Volumes/4TBMobile/doc/doc",
+            "/Volumes/4TBMobile/doc/docFC",
+            "/Volumes/4TBMobile/doc/docLi",
+            "/Volumes/4TBMobile/media/media",
+            "/Volumes/4TBMobile/media/meFc",
+            "/Volumes/4TBMobile/media/meLi"
+        ],
+        "allowed_ips": [
+            "127.0.0.1",
+            "192.168.2.100",
+            "192.168.2.191",
+            "192.168.2.190",
+            "192.168.2.171"
+        ],
+        "database": {
+            "path": "local.sqlite"
+        },
+        "analysis": {
+            "scene_thumbnails_count": 20,
+            "quality_analysis_enabled": True,
+            "auto_analysis_enabled": True,
+            "analysis_schedule_hour": 5,
+            "analysis_schedule_minute": 0
+        },
+        "thumbnails": {
+            "width": 160,
+            "height": 90,
+            "main_thumbnail_time": "00:00:01"
+        },
+        "pagination": {
+            "videos_per_page": 100
+        },
+        "paths": {
+            "remove_directory_windows": "D:\\remove",
+            "remove_directory_unix": "~/remove",
+            "video_library_base": "~/video_library"
+        },
+        "move_destinations": {
+            "doc": {"windows": "D:\\doc", "unix": "~/video_library/doc"},
+            "me": {"windows": "D:\\me", "unix": "~/video_library/me"},
+            "doc/fc": {"windows": "D:\\doc\\fc", "unix": "~/video_library/doc/fc"},
+            "doc/li": {"windows": "D:\\doc\\li", "unix": "~/video_library/doc/li"},
+            "me/fc": {"windows": "D:\\me\\fc", "unix": "~/video_library/me/fc"},
+            "me/li": {"windows": "D:\\me\\li", "unix": "~/video_library/me/li"},
+            "as": {"windows": "D:\\as", "unix": "~/video_library/as"},
+            "iv": {"windows": "D:\\iv", "unix": "~/video_library/iv"}
+        }
+    }
+
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                # デフォルト設定とマージ
+                for key, value in default_config.items():
+                    if key not in config:
+                        config[key] = value
+                return config
+        except Exception as e:
+            print(f"設定ファイル読み込みエラー: {e}")
+            print("デフォルト設定を使用します")
+
+    # 設定ファイルが存在しない場合はデフォルト設定で作成
+    save_config(default_config)
+    return default_config
+
+
+def save_config(config):
+    """設定ファイルを保存"""
+    try:
+        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"設定ファイル保存エラー: {e}")
+        return False
+
+
+def get_platform_path(path_config):
+    """プラットフォーム別のパスを取得"""
+    if os.name == 'nt':  # Windows
+        return os.path.expanduser(path_config.get('windows', path_config))
+    else:  # Unix/Linux/macOS
+        return os.path.expanduser(path_config.get('unix', path_config))
+
+
+# 設定を読み込み
+config = load_config()
+
+# Flaskアプリの設定
+app.secret_key = config['app']['secret_key']
 app.jinja_env.globals.update(max=max, min=min)
 
+# 設定値を変数に展開
+VIDEO_DIRS = config['video_directories']
+DB_PATH = config['database']['path']
+ALLOWED_IPS = config['allowed_ips']
 
-@app.template_filter('datetimeformat')
-def datetimeformat(value, fmt='%Y-%m-%d %H:%M:%S'):
-    # view_history の viewed_at 等をフォーマットするためのフィルター
-    try:
-        if isinstance(value, str):
-            # 文字列の場合、datetimeオブジェクトに変換を試行
-            from datetime import datetime
-            try:
-                # ISO形式の文字列を試行
-                dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
-                return dt.strftime(fmt)
-            except:
-                # その他の形式を試行
-                try:
-                    dt = datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
-                    return dt.strftime(fmt)
-                except:
-                    return value  # 変換できない場合はそのまま返す
-        elif hasattr(value, 'strftime'):
-            # datetimeオブジェクトの場合
-            return value.strftime(fmt)
-        elif isinstance(value, (int, float)):
-            # UNIXタイムスタンプの場合
-            return datetime.fromtimestamp(float(value)).strftime(fmt)
-        else:
-            return str(value)
-    except Exception:
-        return str(value)
-
-
-# 設定：複数の動画ディレクトリ+
-VIDEO_DIRS = [
-    '/Volumes/4TBMobile/doc/doc',
-    '/Volumes/4TBMobile/doc/docFC',
-    '/Volumes/4TBMobile/doc/docLi',
-    '/Volumes/4TBMobile/media/media',
-    '/Volumes/4TBMobile/media/meFc',
-    '/Volumes/4TBMobile/media/meLi'
-]
-DB_PATH = "local.sqlite"
-
-# アップロード先ディレクトリの選択肢
+# ディレクトリ設定
 UPLOAD_DIRS = {
     os.path.basename(d): d
     for d in VIDEO_DIRS
 }
-
-ALLOWED_IPS = [
-    '127.0.0.1',
-    '192.168.2.100',
-    '192.168.2.191',  # i9-7
-    '192.168.2.190',  # ipad
-    '192.168.2.171',
-]
 
 # グローバル変数で進捗を保持
 progress_status = {"total": 0, "current": 0}
@@ -127,6 +187,7 @@ class VideoAnalyzer:
     def __init__(self):
         self.analysis_queue = queue.Queue()
         self.is_running = False
+        self.is_paused = False
         self.worker_thread = None
         self.current_analysis = {"video_id": None, "progress": 0, "status": "待機中"}
 
@@ -156,14 +217,38 @@ class VideoAnalyzer:
         return {
             "queue_size": self.analysis_queue.qsize(),
             "current_analysis": self.current_analysis,
-            "is_running": self.is_running
+            "is_running": self.is_running,
+            "is_paused": self.is_paused
         }
+
+    def pause_analysis(self):
+        """分析を一時停止"""
+        self.is_paused = True
+        self.current_analysis["status"] = "一時停止中"
+        print("動画分析を一時停止しました")
+
+    def resume_analysis(self):
+        """分析を再開"""
+        self.is_paused = False
+        if self.is_running:
+            self.current_analysis["status"] = "分析中" if self.current_analysis["video_id"] else "待機中"
+            print("動画分析を再開しました")
 
     def _analysis_worker(self):
         """バックグラウンド分析のワーカー"""
         while self.is_running:
             try:
+                # 一時停止中はスキップ
+                if self.is_paused:
+                    time.sleep(1)
+                    continue
+
                 video_id, file_path = self.analysis_queue.get(timeout=5)
+
+                # 一時停止された場合、キューに戻す
+                if self.is_paused:
+                    self.analysis_queue.put((video_id, file_path))
+                    continue
 
                 self.current_analysis = {
                     "video_id": video_id,
@@ -183,7 +268,7 @@ class VideoAnalyzer:
                 self.current_analysis = {
                     "video_id": None,
                     "progress": 0,
-                    "status": "待機中"
+                    "status": "待機中" if not self.is_paused else "一時停止中"
                 }
 
             except queue.Empty:
@@ -382,8 +467,11 @@ class VideoAnalyzer:
             print(f"ハッシュ計算エラー: {e}")
             return ""
 
-    def _generate_scene_thumbnails(self, video_path: str, video_id: str, duration: float, num_scenes: int = 20):
+    def _generate_scene_thumbnails(self, video_path: str, video_id: str, duration: float, num_scenes: int = None):
         """動画を21分割して最初の20枚のシーンサムネイル生成"""
+        if num_scenes is None:
+            num_scenes = config['analysis']['scene_thumbnails_count']
+
         scenes_dir = os.path.join("static", "scenes")
         os.makedirs(scenes_dir, exist_ok=True)
 
@@ -391,8 +479,25 @@ class VideoAnalyzer:
             return
 
         try:
+            # 既存のサムネイルをチェック
+            all_exist = True
+            for i in range(num_scenes):
+                thumb_filename = f"{video_id}_scene_{i}.jpg"
+                thumb_filepath = os.path.join(scenes_dir, thumb_filename)
+                if not os.path.exists(thumb_filepath):
+                    all_exist = False
+                    break
+
+            # 全てのサムネイルが既に存在する場合はスキップ
+            if all_exist:
+                print(f"シーンサムネイル既存: {video_id} ({num_scenes}枚)")
+                return
+
             # 21分割して最初の20枚を生成（最後の1枚は除外）
             total_segments = num_scenes + 1  # 21分割
+            thumb_width = config['thumbnails']['width']
+            thumb_height = config['thumbnails']['height']
+
             for i in range(num_scenes):  # 0-19の20枚
                 # タイムスタンプ計算：全体を21分割したときの各セグメントの開始点
                 timestamp = duration * i / total_segments
@@ -407,10 +512,13 @@ class VideoAnalyzer:
 
                     cmd = [
                         "ffmpeg", "-ss", str(timestamp), "-i", video_path_safe,
-                        "-vframes", "1", "-vf", "scale=160:90", "-y", thumb_filepath
+                        "-vframes", "1", "-vf", f"scale={thumb_width}:{thumb_height}", "-y", thumb_filepath
                     ]
-                    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
-                    print(f"生成: {thumb_filename} at {timestamp:.2f}s")
+                    result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+                    if result.returncode == 0:
+                        print(f"生成: {thumb_filename} at {timestamp:.2f}s")
+                    else:
+                        print(f"生成失敗: {thumb_filename}")
 
         except Exception as e:
             print(f"シーンサムネイル生成エラー: {e}")
@@ -620,7 +728,180 @@ init_db()  # サーバー起動時にDB初期化
 # 既存の関数群は省略（変更なし）
 # ... [ここに既存のすべての関数とルートを含める] ...
 
-# 動画分析関連の新しいルートを追加
+# 設定管理ルート
+@app.route('/settings')
+@login_required
+def settings_page():
+    """設定管理ページ"""
+    return render_template('settings.html', config=config)
+
+
+@app.route('/settings/save', methods=['POST'])
+@login_required
+def save_settings():
+    """設定を保存"""
+    global config, VIDEO_DIRS, DB_PATH, ALLOWED_IPS, UPLOAD_DIRS
+
+    try:
+        # フォームデータから設定を更新
+        new_config = config.copy()
+
+        # アプリケーション設定
+        new_config['app']['secret_key'] = request.form.get('secret_key', config['app']['secret_key'])
+        new_config['app']['debug'] = request.form.get('debug') == 'on'
+        new_config['app']['host'] = request.form.get('host', config['app']['host'])
+        new_config['app']['port'] = int(request.form.get('port', config['app']['port']))
+
+        # 動画ディレクトリ
+        video_dirs = request.form.get('video_directories', '').strip()
+        if video_dirs:
+            new_config['video_directories'] = [d.strip() for d in video_dirs.split('\n') if d.strip()]
+
+        # 許可IP
+        allowed_ips = request.form.get('allowed_ips', '').strip()
+        if allowed_ips:
+            new_config['allowed_ips'] = [ip.strip() for ip in allowed_ips.split('\n') if ip.strip()]
+
+        # データベース設定
+        new_config['database']['path'] = request.form.get('database_path', config['database']['path'])
+
+        # 分析設定
+        new_config['analysis']['scene_thumbnails_count'] = int(
+            request.form.get('scene_thumbnails_count', config['analysis']['scene_thumbnails_count']))
+        new_config['analysis']['quality_analysis_enabled'] = request.form.get('quality_analysis_enabled') == 'on'
+        new_config['analysis']['auto_analysis_enabled'] = request.form.get('auto_analysis_enabled') == 'on'
+        new_config['analysis']['analysis_schedule_hour'] = int(
+            request.form.get('analysis_schedule_hour', config['analysis']['analysis_schedule_hour']))
+        new_config['analysis']['analysis_schedule_minute'] = int(
+            request.form.get('analysis_schedule_minute', config['analysis']['analysis_schedule_minute']))
+
+        # サムネイル設定
+        new_config['thumbnails']['width'] = int(request.form.get('thumbnail_width', config['thumbnails']['width']))
+        new_config['thumbnails']['height'] = int(request.form.get('thumbnail_height', config['thumbnails']['height']))
+        new_config['thumbnails']['main_thumbnail_time'] = request.form.get('main_thumbnail_time',
+                                                                           config['thumbnails']['main_thumbnail_time'])
+
+        # ページネーション設定
+        new_config['pagination']['videos_per_page'] = int(
+            request.form.get('videos_per_page', config['pagination']['videos_per_page']))
+
+        # パス設定
+        new_config['paths']['remove_directory_windows'] = request.form.get('remove_directory_windows',
+                                                                           config['paths']['remove_directory_windows'])
+        new_config['paths']['remove_directory_unix'] = request.form.get('remove_directory_unix',
+                                                                        config['paths']['remove_directory_unix'])
+        new_config['paths']['video_library_base'] = request.form.get('video_library_base',
+                                                                     config['paths']['video_library_base'])
+
+        # 移動先設定
+        for dest in new_config['move_destinations']:
+            new_config['move_destinations'][dest]['windows'] = request.form.get(f'move_dest_{dest}_windows',
+                                                                                new_config['move_destinations'][dest][
+                                                                                    'windows'])
+            new_config['move_destinations'][dest]['unix'] = request.form.get(f'move_dest_{dest}_unix',
+                                                                             new_config['move_destinations'][dest][
+                                                                                 'unix'])
+
+        # 設定を保存
+        if save_config(new_config):
+            # グローバル変数を更新
+            config = new_config
+            VIDEO_DIRS = config['video_directories']
+            DB_PATH = config['database']['path']
+            ALLOWED_IPS = config['allowed_ips']
+            UPLOAD_DIRS = {os.path.basename(d): d for d in VIDEO_DIRS}
+
+            flash('設定を保存しました。一部の設定はサーバー再起動後に反映されます。', 'success')
+        else:
+            flash('設定の保存に失敗しました。', 'error')
+
+    except Exception as e:
+        flash(f'設定保存中にエラーが発生しました: {str(e)}', 'error')
+
+    return redirect(url_for('settings_page'))
+
+
+@app.route('/settings/reset', methods=['POST'])
+@login_required
+def reset_settings():
+    """設定をデフォルトにリセット"""
+    global config, VIDEO_DIRS, DB_PATH, ALLOWED_IPS, UPLOAD_DIRS
+
+    try:
+        # デフォルト設定を再生成
+        default_config = {
+            "app": {
+                "secret_key": "your_secret_key_change_in_production",
+                "debug": True,
+                "host": "0.0.0.0",
+                "port": 5000
+            },
+            "video_directories": [
+                "/Volumes/4TBMobile/doc/doc",
+                "/Volumes/4TBMobile/doc/docFC",
+                "/Volumes/4TBMobile/doc/docLi",
+                "/Volumes/4TBMobile/media/media",
+                "/Volumes/4TBMobile/media/meFc",
+                "/Volumes/4TBMobile/media/meLi"
+            ],
+            "allowed_ips": [
+                "127.0.0.1",
+                "192.168.2.100",
+                "192.168.2.191",
+                "192.168.2.190",
+                "192.168.2.171"
+            ],
+            "database": {
+                "path": "local.sqlite"
+            },
+            "analysis": {
+                "scene_thumbnails_count": 20,
+                "quality_analysis_enabled": True,
+                "auto_analysis_enabled": True,
+                "analysis_schedule_hour": 5,
+                "analysis_schedule_minute": 0
+            },
+            "thumbnails": {
+                "width": 160,
+                "height": 90,
+                "main_thumbnail_time": "00:00:01"
+            },
+            "pagination": {
+                "videos_per_page": 100
+            },
+            "paths": {
+                "remove_directory_windows": "D:\\remove",
+                "remove_directory_unix": "~/remove",
+                "video_library_base": "~/video_library"
+            },
+            "move_destinations": {
+                "doc": {"windows": "D:\\doc", "unix": "~/video_library/doc"},
+                "me": {"windows": "D:\\me", "unix": "~/video_library/me"},
+                "doc/fc": {"windows": "D:\\doc\\fc", "unix": "~/video_library/doc/fc"},
+                "doc/li": {"windows": "D:\\doc\\li", "unix": "~/video_library/doc/li"},
+                "me/fc": {"windows": "D:\\me\\fc", "unix": "~/video_library/me/fc"},
+                "me/li": {"windows": "D:\\me\\li", "unix": "~/video_library/me/li"},
+                "as": {"windows": "D:\\as", "unix": "~/video_library/as"},
+                "iv": {"windows": "D:\\iv", "unix": "~/video_library/iv"}
+            }
+        }
+
+        if save_config(default_config):
+            # グローバル変数を更新
+            config = default_config
+            VIDEO_DIRS = config['video_directories']
+            DB_PATH = config['database']['path']
+            ALLOWED_IPS = config['allowed_ips']
+            UPLOAD_DIRS = {os.path.basename(d): d for d in VIDEO_DIRS}
+
+            flash('設定をデフォルトにリセットしました。サーバーを再起動してください。', 'success')
+        else:
+            flash('設定のリセットに失敗しました。', 'error')
+    except Exception as e:
+        flash(f'設定リセット中にエラーが発生しました: {str(e)}', 'error')
+
+    return redirect(url_for('settings_page'))
+
 
 @app.route('/analysis')
 @login_required
@@ -764,6 +1045,24 @@ def start_analysis():
     return redirect(url_for('analysis_dashboard'))
 
 
+@app.route('/analysis/pause', methods=['POST'])
+@login_required
+def pause_analysis():
+    """分析を一時停止"""
+    video_analyzer.pause_analysis()
+    flash("動画分析を一時停止しました。")
+    return redirect(url_for('analysis_dashboard'))
+
+
+@app.route('/analysis/resume', methods=['POST'])
+@login_required
+def resume_analysis():
+    """分析を再開"""
+    video_analyzer.resume_analysis()
+    flash("動画分析を再開しました。")
+    return redirect(url_for('analysis_dashboard'))
+
+
 @app.route('/analysis/status')
 @login_required
 def analysis_status():
@@ -811,13 +1110,24 @@ def duplicates_page():
         }
 
         for i in range(len(video_ids)):
+            # サムネイル生成（存在しない場合）
+            thumb_filename = f"{video_ids[i]}.jpg"
+            thumb_path = os.path.join("static", "thumbnails", thumb_filename)
+
+            if thumb_filename not in THUMBNAIL_CACHE and os.path.exists(file_paths[i]):
+                try:
+                    generate_thumbnail(file_paths[i], thumb_path)
+                    THUMBNAIL_CACHE.add(thumb_filename)
+                except Exception as e:
+                    print(f"サムネイル生成エラー ({file_paths[i]}): {e}")
+
             group['videos'].append({
                 'video_id': video_ids[i],
                 'file_path': file_paths[i],
                 'filename': filenames[i],
                 'file_size': file_sizes[i],
                 'quality_score': quality_scores[i],
-                'thumb': f"{video_ids[i]}.jpg"
+                'thumb': thumb_filename
             })
 
         # 品質スコア順でソート（高品質が先頭）
@@ -828,6 +1138,43 @@ def duplicates_page():
 
     return render_template('duplicates.html', duplicate_groups=duplicate_groups)
 
+
+@app.template_filter('datetimeformat')
+def datetime_format_filter(value, format='%Y-%m-%d %H:%M:%S'):
+    """Format a datetime object or string"""
+    if value is None:
+        return ""
+
+    try:
+        # If it's already a datetime object
+        if hasattr(value, 'strftime'):
+            return value.strftime(format)
+
+        # If it's a string, try to parse it
+        if isinstance(value, str):
+            # Try ISO format first
+            try:
+                dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                return dt.strftime(format)
+            except ValueError:
+                # Try other common formats
+                for fmt in ['%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d']:
+                    try:
+                        dt = datetime.strptime(value, fmt)
+                        return dt.strftime(format)
+                    except ValueError:
+                        continue
+                return value  # Return original if can't parse
+
+        # If it's a timestamp (float)
+        if isinstance(value, (int, float)):
+            dt = datetime.fromtimestamp(value)
+            return dt.strftime(format)
+
+        return str(value)
+    except Exception as e:
+        print(f"Datetime formatting error: {e}")
+        return str(value) if value else ""
 
 @app.route('/duplicates/resolve', methods=['POST'])
 @login_required
@@ -851,7 +1198,11 @@ def resolve_duplicates():
                 video = video_dict[video_id]
 
                 # ファイルを削除ディレクトリに移動
-                remove_dir = "D:\\remove"
+                if os.name == 'nt':  # Windows
+                    remove_dir = "D:\\remove"
+                else:  # macOS/Linux
+                    remove_dir = os.path.expanduser("~/remove")
+
                 os.makedirs(remove_dir, exist_ok=True)
                 dest_path = os.path.join(remove_dir, video['filename'])
 
@@ -925,7 +1276,83 @@ def update_video_metadata():
     scanned_videos = []
 
     conn = get_db_connection()
-    # 既存のロジック...（省略）
+    # DB から既存のディレクトリハッシュを取得
+    cur = conn.execute("SELECT directory, hash_value FROM directory_hash")
+    stored_hashes = {row["directory"]: row["hash_value"] for row in cur.fetchall()}
+
+    # 各 base ディレクトリを走査
+    for base_dir in VIDEO_DIRS:
+        current_hash = compute_directory_hash(base_dir)
+        if base_dir in stored_hashes and stored_hashes[base_dir] == current_hash:
+            print(f"ディレクトリ {base_dir} は変更がないため、既存の情報を利用します。")
+            # 既存の情報をvideo_metadataテーブルから読み出す
+            cur = conn.execute("SELECT * FROM video_metadata WHERE directory LIKE ?", (base_dir + '%',))
+            rows = cur.fetchall()
+            for row in rows:
+                scanned_videos.append({
+                    "video_id": row["video_id"],
+                    "full_path": row["full_path"],
+                    "filename": row["filename"],
+                    "directory": row["directory"],
+                    "created": row["created"],
+                    "duration": row["duration"],
+                })
+        else:
+            print(f"ディレクトリ {base_dir} に変更があります。処理を実行します。")
+            # 変更があったディレクトリは、動画ファイルを走査して scanned_videos に追加
+            for root, dirs, files in os.walk(base_dir):
+                for file in tqdm(files):
+                    if file.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.m4a')):
+                        full_path = os.path.abspath(os.path.join(root, file))
+                        video_hash = hashlib.md5(full_path.encode('utf-8')).hexdigest()
+                        created = os.path.getctime(full_path)
+                        duration = get_video_duration(full_path)
+                        scanned_videos.append({
+                            "video_id": video_hash,
+                            "full_path": full_path,
+                            "filename": file,
+                            "directory": root,
+                            "created": created,
+                            "duration": duration,
+                        })
+            # DB に現在のハッシュを保存（アップサート）
+            conn.execute('''
+                INSERT INTO directory_hash (directory, hash_value)
+                VALUES (?, ?)
+                ON CONFLICT(directory) DO UPDATE SET hash_value=excluded.hash_value
+            ''', (base_dir, current_hash))
+
+    progress_status["total"] = len(scanned_videos)
+    progress_status["current"] = 0
+
+    # video_metadata テーブルの更新処理
+    cur = conn.execute("SELECT video_id FROM video_metadata")
+    existing_ids = {row["video_id"] for row in cur.fetchall()}
+    scanned_ids = {video["video_id"] for video in scanned_videos}
+
+    # 削除対象：既存レコードでスキャン結果に無いものを削除
+    ids_to_delete = existing_ids - scanned_ids
+    if ids_to_delete:
+        conn.executemany("DELETE FROM video_metadata WHERE video_id = ?", [(vid,) for vid in ids_to_delete])
+        print(f"削除対象の動画ID: {ids_to_delete}")
+
+    # スキャン結果を動画メタデータテーブルにアップサート
+    for video in scanned_videos:
+        conn.execute('''
+            INSERT INTO video_metadata (video_id, full_path, filename, directory, created, duration)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(video_id) DO UPDATE SET
+                full_path=excluded.full_path,
+                filename=excluded.filename,
+                directory=excluded.directory,
+                created=excluded.created,
+                duration=excluded.duration
+        ''', (video["video_id"], video["full_path"], video["filename"],
+              video["directory"], video["created"], video["duration"]))
+        progress_status["current"] += 1
+
+    conn.commit()
+    conn.close()
 
     # 分析キューに追加
     for video in scanned_videos:
@@ -937,7 +1364,6 @@ def update_video_metadata():
 
 # 既存のコードの続き...
 
-# 以下は既存のコードをそのまま含める（省略表示）
 # カスタムフィルター：秒数をHH:MM:SSまたはMM:SSに変換
 @app.template_filter('format_time')
 def format_time_filter(seconds):
@@ -1055,11 +1481,11 @@ def delete_video(video_id):
     # 移動元と移動先のパスを設定
     source_path = video["full_path"]
 
-    # macOSとWindowsでパスを分ける
+    # 設定に基づいてパスを決定
     if os.name == 'nt':  # Windows
-        remove_dir = "D:\\remove"
+        remove_dir = config['paths']['remove_directory_windows']
     else:  # macOS/Linux
-        remove_dir = os.path.expanduser("~/remove")
+        remove_dir = os.path.expanduser(config['paths']['remove_directory_unix'])
 
     dest_path = os.path.join(remove_dir, video["filename"])
 
@@ -1142,31 +1568,82 @@ def delete_directory(video_id):
     return redirect(url_for("index"))
 
 
-# 視聴履歴ページ
+# app.pyの視聴履歴ページを修正
+
 @app.route('/history')
 @login_required
 def history():
     conn = get_db_connection()
-    rows = conn.execute('''
-        SELECT vh.video_id, vh.viewed_at, vm.filename, vm.duration
-          FROM view_history vh
-          JOIN video_metadata vm ON vh.video_id = vm.video_id
-         WHERE vh.username = ?
-         ORDER BY vh.viewed_at DESC
-         LIMIT 100
-    ''', (current_user.id,)).fetchall()
-    conn.close()
+    try:
+        rows = conn.execute('''
+            SELECT vh.video_id, vh.viewed_at, vm.filename, vm.duration, vm.full_path
+              FROM view_history vh
+              JOIN video_metadata vm ON vh.video_id = vm.video_id
+             WHERE vh.username = ?
+             ORDER BY vh.viewed_at DESC
+             LIMIT 100
+        ''', (current_user.id,)).fetchall()
+    except Exception as e:
+        print(f"履歴取得エラー: {e}")
+        rows = []
+    finally:
+        conn.close()
 
     history_items = []
+    thumb_dir = os.path.join("static", "thumbnails")
+    os.makedirs(thumb_dir, exist_ok=True)
+
+    # 統計計算用の変数
+    total_duration = 0
+    unique_dates = set()
+
     for row in rows:
-        history_items.append({
-            'id': row['video_id'],
-            'filename': row['filename'],
-            'duration': row['duration'],
-            'viewed_at': datetime.fromtimestamp(row['viewed_at']).strftime('%Y-%m-%d %H:%M:%S'),
-            'thumb': f"{row['video_id']}.jpg"
-        })
-    return render_template('history.html', history_items=history_items)
+        try:
+            # サムネイル生成（存在しない場合）
+            thumb_filename = f"{row['video_id']}.jpg"
+            thumb_path = os.path.join(thumb_dir, thumb_filename)
+
+            if thumb_filename not in THUMBNAIL_CACHE and os.path.exists(row['full_path']):
+                try:
+                    generate_thumbnail(row['full_path'], thumb_path)
+                    THUMBNAIL_CACHE.add(thumb_filename)
+                except Exception as e:
+                    print(f"サムネイル生成エラー ({row['full_path']}): {e}")
+
+            # 日時のフォーマット
+            viewed_datetime = datetime.fromtimestamp(row['viewed_at'])
+            viewed_date_str = viewed_datetime.strftime('%Y-%m-%d')
+
+            # 統計用データ収集
+            if row['duration']:
+                total_duration += row['duration']
+            unique_dates.add(viewed_date_str)
+
+            history_items.append({
+                'id': row['video_id'],
+                'filename': row['filename'] or '不明なファイル',
+                'duration': row['duration'] or 0,
+                'viewed_at': viewed_datetime.strftime('%Y-%m-%d %H:%M:%S'),
+                'viewed_at_iso': viewed_datetime.isoformat(),  # JavaScript用
+                'viewed_date': viewed_date_str,  # 日付のみ
+                'thumb': thumb_filename,
+                'full_path': row['full_path']  # デバッグ用
+            })
+        except Exception as e:
+            print(f"履歴アイテム処理エラー: {e}")
+            continue
+
+    # 統計情報を計算
+    stats = {
+        'total_count': len(history_items),
+        'total_duration_minutes': int(total_duration / 60) if total_duration > 0 else 0,
+        'unique_days': len(unique_dates)
+    }
+
+    print(f"履歴件数: {len(history_items)}")  # デバッグ用
+    print(f"統計: {stats}")  # デバッグ用
+
+    return render_template('history.html', history_items=history_items, stats=stats)
 
 
 # ゴミ箱
@@ -1178,9 +1655,15 @@ def upload_page():
 
 
 # POST を受け付けて非同期にアップロードを開始
+# start_upload ルートを修正
 @app.route('/start_upload', methods=['POST'])
 @login_required
 def start_upload():
+    # アップロード開始前に分析を一時停止
+    if video_analyzer.is_running and not video_analyzer.is_paused:
+        video_analyzer.pause_analysis()
+        print("アップロード開始: 動画分析を一時停止しました")
+
     dest_key = request.form['directory']
     dest_dir = UPLOAD_DIRS.get(dest_key)
     if not dest_dir:
@@ -1191,6 +1674,13 @@ def start_upload():
     if not files:
         flash("ファイルを選択してください。")
         return redirect(url_for('upload_page'))
+
+    # 新規タグを取得
+    new_tags_input = request.form.get('new_tags', '').strip()
+    new_tags = []
+    if new_tags_input:
+        # カンマ区切りでタグを分割し、空白を除去
+        new_tags = [tag.strip() for tag in new_tags_input.split(',') if tag.strip()]
 
     # --- 1) バッチID とタイムスタンプを用意 ---
     batch_id = str(uuid4())
@@ -1204,11 +1694,17 @@ def start_upload():
     ''', (batch_id, current_user.id, dest_key, len(files), ts))
 
     # --- 3) ファイルを保存しつつ upload_files に書き込み ---
+    uploaded_video_ids = []
     for f in files:
         original = f.filename
         save_path = UPLOAD_DIRS[dest_key]
         unique = unique_filename(save_path, original)
-        f.save(os.path.join(save_path, unique))
+        full_path = os.path.join(save_path, unique)
+        f.save(full_path)
+
+        # ビデオIDを生成（アップロード時に）
+        video_id = hashlib.md5(full_path.encode('utf-8')).hexdigest()
+        uploaded_video_ids.append(video_id)
 
         conn.execute('''
             INSERT INTO upload_files (batch_id, filename)
@@ -1218,8 +1714,19 @@ def start_upload():
     conn.commit()
     conn.close()
 
-    flash(f"{len(files)} 件のアップロードが完了しました。")
+    # メタデータを更新（新しいファイルをDBに反映）
     update_video_metadata()
+
+    # 新規タグがある場合は、アップロードした動画全てに適用
+    if new_tags:
+        for video_id in uploaded_video_ids:
+            for tag in new_tags:
+                add_video_tag(video_id, tag)
+
+        flash(f"{len(files)} 件のアップロードが完了しました。タグ '{', '.join(new_tags)}' を追加しました。")
+    else:
+        flash(f"{len(files)} 件のアップロードが完了しました。")
+
     # アップロード進捗画面へリダイレクト
     return redirect(url_for('upload_progress'))
 
@@ -1545,7 +2052,10 @@ def get_video_list():
 
 
 # ffmpegでサムネイル生成
-def generate_thumbnail(video_path, thumb_path, time="00:00:01"):
+def generate_thumbnail(video_path, thumb_path, time=None):
+    if time is None:
+        time = config['thumbnails']['main_thumbnail_time']
+
     if not os.path.exists(thumb_path):
         cmd = [
             "ffmpeg", "-ss", time, "-i", video_path,
@@ -1582,9 +2092,10 @@ def generate_scene_thumbnails(video_path, video_id, num_scenes=20):
     if duration <= 0:
         return scenes, duration
 
-    # 既存のサムネイルをチェック
+    # 既存のサムネイルを全てチェック
     existing_scenes = []
     total_segments = num_scenes + 1  # 21分割
+    all_exist = True
 
     for i in range(num_scenes):  # 0-19の20枚
         thumb_filename = f"{video_id}_scene_{i}.jpg"
@@ -1596,9 +2107,11 @@ def generate_scene_thumbnails(video_path, video_id, num_scenes=20):
                 "thumb": thumb_filename,
                 "time": timestamp
             })
+        else:
+            all_exist = False
 
-    # 既存のサムネイルがある場合はそれを使用
-    if len(existing_scenes) == num_scenes:
+    # 全てのサムネイルが既に存在する場合はそれを使用
+    if all_exist and len(existing_scenes) == num_scenes:
         return existing_scenes, duration
 
     # サムネイルが不足している場合は生成
@@ -1616,15 +2129,15 @@ def generate_scene_thumbnails(video_path, video_id, num_scenes=20):
                 "ffmpeg", "-ss", str(timestamp), "-i", video_path_safe,
                 "-vframes", "1", "-vf", "scale=160:90", "-y", thumb_filepath
             ]
-            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            print(f"生成: {thumb_filename} at {timestamp:.2f}s")
+            result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if result.returncode == 0:
+                print(f"生成: {thumb_filename} at {timestamp:.2f}s")
 
         scenes.append({
             "thumb": thumb_filename,
             "time": timestamp
         })
     return scenes, duration
-
 
 # TOPページ：動画一覧
 @app.route('/')
@@ -1655,7 +2168,7 @@ def index():
     elif sort_by == "filename":
         videos.sort(key=lambda v: v["filename"].lower(), reverse=reverse)
 
-    per_page = 100
+    per_page = config['pagination']['videos_per_page']
     page = int(request.args.get("page", 1))
     total = len(videos)
     start = (page - 1) * per_page
@@ -1749,9 +2262,6 @@ def serve_video(video_id):
     return send_from_directory(video["directory"], video["filename"])
 
 
-# その他の既存ルート（省略）
-# ... [他のルートは既存のまま] ...
-
 # ユーザー管理テーブルの初期化
 def init_users():
     conn = get_db_connection()
@@ -1832,97 +2342,6 @@ def restrict_ip():
         abort(403)
 
 
-def update_video_metadata():
-    global progress_status
-    scanned_videos = []
-
-    conn = get_db_connection()
-    # DB から既存のディレクトリハッシュを取得
-    cur = conn.execute("SELECT directory, hash_value FROM directory_hash")
-    stored_hashes = {row["directory"]: row["hash_value"] for row in cur.fetchall()}
-
-    # 各 base ディレクトリを走査
-    for base_dir in VIDEO_DIRS:
-        current_hash = compute_directory_hash(base_dir)
-        if base_dir in stored_hashes and stored_hashes[base_dir] == current_hash:
-            print(f"ディレクトリ {base_dir} は変更がないため、既存の情報を利用します。")
-            # 既存の情報をvideo_metadataテーブルから読み出す
-            cur = conn.execute("SELECT * FROM video_metadata WHERE directory LIKE ?", (base_dir + '%',))
-            rows = cur.fetchall()
-            for row in rows:
-                scanned_videos.append({
-                    "video_id": row["video_id"],
-                    "full_path": row["full_path"],
-                    "filename": row["filename"],
-                    "directory": row["directory"],
-                    "created": row["created"],
-                    "duration": row["duration"],
-                })
-        else:
-            print(f"ディレクトリ {base_dir} に変更があります。処理を実行します。")
-            # 変更があったディレクトリは、動画ファイルを走査して scanned_videos に追加
-            for root, dirs, files in os.walk(base_dir):
-                for file in tqdm(files):
-                    if file.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.m4a')):
-                        full_path = os.path.abspath(os.path.join(root, file))
-                        video_hash = hashlib.md5(full_path.encode('utf-8')).hexdigest()
-                        created = os.path.getctime(full_path)
-                        duration = get_video_duration(full_path)
-                        scanned_videos.append({
-                            "video_id": video_hash,
-                            "full_path": full_path,
-                            "filename": file,
-                            "directory": root,
-                            "created": created,
-                            "duration": duration,
-                        })
-            # DB に現在のハッシュを保存（アップサート）
-            conn.execute('''
-                INSERT INTO directory_hash (directory, hash_value)
-                VALUES (?, ?)
-                ON CONFLICT(directory) DO UPDATE SET hash_value=excluded.hash_value
-            ''', (base_dir, current_hash))
-
-    progress_status["total"] = len(scanned_videos)
-    progress_status["current"] = 0
-
-    # video_metadata テーブルの更新処理
-    cur = conn.execute("SELECT video_id FROM video_metadata")
-    existing_ids = {row["video_id"] for row in cur.fetchall()}
-    scanned_ids = {video["video_id"] for video in scanned_videos}
-
-    # 削除対象：既存レコードでスキャン結果に無いものを削除
-    ids_to_delete = existing_ids - scanned_ids
-    if ids_to_delete:
-        conn.executemany("DELETE FROM video_metadata WHERE video_id = ?", [(vid,) for vid in ids_to_delete])
-        print(f"削除対象の動画ID: {ids_to_delete}")
-
-    # スキャン結果を動画メタデータテーブルにアップサート
-    for video in scanned_videos:
-        conn.execute('''
-            INSERT INTO video_metadata (video_id, full_path, filename, directory, created, duration)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(video_id) DO UPDATE SET
-                full_path=excluded.full_path,
-                filename=excluded.filename,
-                directory=excluded.directory,
-                created=excluded.created,
-                duration=excluded.duration
-        ''', (video["video_id"], video["full_path"], video["filename"],
-              video["directory"], video["created"], video["duration"]))
-        progress_status["current"] += 1
-
-    conn.commit()
-    conn.close()
-
-    # 分析キューに追加
-    for video in scanned_videos:
-        video_analyzer.add_video_for_analysis(video["video_id"], video["full_path"])
-
-    print("動画メタデータの更新と分析キューへの追加が完了しました。")
-    load_thumbnail_cache()
-
-
 def init_directory_hash_table():
     conn = get_db_connection()
     conn.execute('''
@@ -1962,7 +2381,12 @@ video_analyzer.start_background_analysis()
 
 # APSchedulerの設定
 scheduler = BackgroundScheduler()
-scheduler.add_job(func=update_video_metadata, trigger="cron", hour=5, minute=0)
+scheduler.add_job(
+    func=update_video_metadata,
+    trigger="cron",
+    hour=config['analysis']['analysis_schedule_hour'],
+    minute=config['analysis']['analysis_schedule_minute']
+)
 scheduler.start()
 
 import atexit
@@ -1971,4 +2395,8 @@ atexit.register(lambda: scheduler.shutdown())
 atexit.register(lambda: video_analyzer.stop_background_analysis())
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True)
+    app.run(
+        host=config['app']['host'],
+        port=config['app']['port'],
+        debug=config['app']['debug']
+    )

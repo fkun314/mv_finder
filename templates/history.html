@@ -44,6 +44,10 @@
     width: 100%;
     height: 180px;
     overflow: hidden;
+    background: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .card-thumbnail img {
@@ -51,6 +55,12 @@
     height: 100%;
     object-fit: cover;
     transition: transform 0.3s ease;
+  }
+
+  .card-thumbnail.no-image {
+    background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+    color: #6b7280;
+    font-size: 2rem;
   }
 
   .history-card:hover .card-thumbnail img {
@@ -358,19 +368,19 @@
   <p class="text-muted mb-0">最近視聴した動画を確認できます</p>
 </div>
 
-{% if history_items %}
+{% if history_items and history_items|length > 0 %}
   <!-- 統計バー -->
   <div class="stats-bar fade-in-up">
     <div class="stat-item">
-      <span class="stat-number">{{ history_items|length }}</span>
+      <span class="stat-number">{{ stats.total_count }}</span>
       <div class="stat-label">視聴した動画</div>
     </div>
     <div class="stat-item">
-      <span class="stat-number">{{ (history_items|map(attribute='duration')|sum / 60)|round }}</span>
+      <span class="stat-number">{{ stats.total_duration_minutes }}</span>
       <div class="stat-label">総視聴時間（分）</div>
     </div>
     <div class="stat-item">
-      <span class="stat-number">{{ history_items|map(attribute='viewed_at')|unique|list|length }}</span>
+      <span class="stat-number">{{ stats.unique_days }}</span>
       <div class="stat-label">視聴日数</div>
     </div>
   </div>
@@ -404,36 +414,42 @@
   </div>
 
   <!-- 履歴グリッド -->
-  <div class="history-grid fade-in-up" id="historyGrid">
+  <div class="history-grid" id="historyGrid">
     {% for item in history_items %}
-      <div class="history-card" data-viewed-at="{{ item.viewed_at }}" data-duration="{{ item.duration }}">
+      <div class="history-card" data-viewed-at="{{ item.viewed_at_iso or item.viewed_at }}" data-duration="{{ item.duration }}">
         <div class="card-thumbnail">
           <a href="{{ url_for('video_page', video_id=item.id) }}">
             <img src="{{ url_for('static', filename='thumbnails/' ~ item.thumb) }}"
-                 alt="{{ item.filename }}" loading="lazy">
+                 alt="{{ item.filename }}"
+                 loading="lazy"
+                 onerror="this.parentElement.classList.add('no-image'); this.style.display='none'; this.parentElement.innerHTML='<i class=\'fas fa-video\'></i>';">
           </a>
           <div class="watched-indicator">
             <i class="fas fa-eye"></i>
             視聴済み
           </div>
+          {% if item.duration and item.duration > 0 %}
           <div class="duration-badge">
             <i class="fas fa-clock me-1"></i>
             {{ item.duration | format_time }}
           </div>
+          {% endif %}
         </div>
 
         <div class="card-content">
-          <h6 class="video-title">{{ item.filename }}</h6>
+          <h6 class="video-title">{{ item.filename or '不明なファイル' }}</h6>
 
           <div class="video-meta">
             <div class="meta-item">
               <i class="fas fa-calendar-alt meta-icon"></i>
               <span>{{ item.viewed_at }}</span>
             </div>
+            {% if item.duration and item.duration > 0 %}
             <div class="meta-item">
               <i class="fas fa-clock meta-icon"></i>
               <span>{{ item.duration | format_time }}</span>
             </div>
+            {% endif %}
           </div>
 
           <div class="watched-time">
@@ -446,7 +462,7 @@
               <i class="fas fa-play"></i>
               再生
             </a>
-            <a href="{{ url_for('index', q=item.filename.split('.')[0]) }}" class="btn-action btn-secondary-action">
+            <a href="{{ url_for('index', q=(item.filename.split('.')[0] if item.filename else '')) }}" class="btn-action btn-secondary-action">
               <i class="fas fa-search"></i>
               検索
             </a>
@@ -480,28 +496,38 @@
   const historyGrid = document.getElementById('historyGrid');
 
   function applyFilters() {
+    if (!historyGrid) return;
+
     const cards = Array.from(historyGrid.querySelectorAll('.history-card'));
-    const sortValue = sortOrder.value;
-    const dateValue = dateFilter.value;
+    const sortValue = sortOrder ? sortOrder.value : 'newest';
+    const dateValue = dateFilter ? dateFilter.value : 'all';
 
     // 日付フィルター
     const now = new Date();
     const filteredCards = cards.filter(card => {
       if (dateValue === 'all') return true;
 
-      const viewedAt = new Date(card.dataset.viewedAt);
-      const diffTime = now - viewedAt;
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const viewedAtStr = card.dataset.viewedAt;
+      if (!viewedAtStr) return false;
 
-      switch (dateValue) {
-        case 'today':
-          return diffDays <= 1;
-        case 'week':
-          return diffDays <= 7;
-        case 'month':
-          return diffDays <= 30;
-        default:
-          return true;
+      try {
+        const viewedAt = new Date(viewedAtStr);
+        const diffTime = now - viewedAt;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        switch (dateValue) {
+          case 'today':
+            return diffDays <= 1;
+          case 'week':
+            return diffDays <= 7;
+          case 'month':
+            return diffDays <= 30;
+          default:
+            return true;
+        }
+      } catch (e) {
+        console.error('日付解析エラー:', e);
+        return true;
       }
     });
 
@@ -509,13 +535,21 @@
     filteredCards.sort((a, b) => {
       switch (sortValue) {
         case 'newest':
-          return new Date(b.dataset.viewedAt) - new Date(a.dataset.viewedAt);
+          try {
+            return new Date(b.dataset.viewedAt) - new Date(a.dataset.viewedAt);
+          } catch (e) {
+            return 0;
+          }
         case 'oldest':
-          return new Date(a.dataset.viewedAt) - new Date(b.dataset.viewedAt);
+          try {
+            return new Date(a.dataset.viewedAt) - new Date(b.dataset.viewedAt);
+          } catch (e) {
+            return 0;
+          }
         case 'duration-desc':
-          return parseFloat(b.dataset.duration) - parseFloat(a.dataset.duration);
+          return (parseFloat(b.dataset.duration) || 0) - (parseFloat(a.dataset.duration) || 0);
         case 'duration-asc':
-          return parseFloat(a.dataset.duration) - parseFloat(b.dataset.duration);
+          return (parseFloat(a.dataset.duration) || 0) - (parseFloat(b.dataset.duration) || 0);
         default:
           return 0;
       }
@@ -535,8 +569,8 @@
   }
 
   // イベントリスナー
-  sortOrder.addEventListener('change', applyFilters);
-  dateFilter.addEventListener('change', applyFilters);
+  if (sortOrder) sortOrder.addEventListener('change', applyFilters);
+  if (dateFilter) dateFilter.addEventListener('change', applyFilters);
 
   // カードホバーエフェクト
   document.querySelectorAll('.history-card').forEach(card => {
