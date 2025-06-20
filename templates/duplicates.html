@@ -582,8 +582,385 @@
       margin-bottom: 1rem;
     }
   }
-</style>
 
+  /* 新しい進捗表示スタイル */
+  .progress-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  }
+
+  .progress-modal.show {
+    display: flex;
+  }
+
+  .progress-modal-content {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e2e8f0;
+  }
+
+  .progress-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .progress-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+  }
+
+  .progress-close:hover {
+    background: #f3f4f6;
+    color: var(--text-primary);
+  }
+
+  .progress-bar-container {
+    margin-bottom: 2rem;
+  }
+
+  .progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .progress-text {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .progress-percentage {
+    font-weight: 700;
+    color: var(--primary-color);
+    font-size: 1.1rem;
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 20px;
+    background: #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    border-radius: 10px;
+    transition: width 0.3s ease;
+    position: relative;
+  }
+
+  .progress-fill.error {
+    background: linear-gradient(135deg, var(--danger-color) 0%, #ef4444 100%);
+  }
+
+  .progress-fill.completed {
+    background: linear-gradient(135deg, var(--success-color) 0%, #22c55e 100%);
+  }
+
+  .progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 35%, rgba(255,255,255,0.3) 50%, transparent 65%);
+    animation: shine 2s infinite;
+  }
+
+  @keyframes shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .progress-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .progress-stat {
+    text-align: center;
+    background: var(--light-bg);
+    padding: 1rem;
+    border-radius: 10px;
+  }
+
+  .progress-stat-number {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+  }
+
+  .progress-stat-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+  }
+
+  .progress-current-file {
+    background: rgba(37, 99, 235, 0.1);
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid var(--primary-color);
+  }
+
+  .progress-current-title {
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+  }
+
+  .progress-current-detail {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    word-break: break-all;
+  }
+
+  .progress-log {
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 1rem;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+  }
+
+  .progress-log-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .progress-log-item {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
+
+  .progress-log-time {
+    color: var(--text-secondary);
+    font-family: monospace;
+    min-width: 60px;
+  }
+
+  .progress-log-message {
+    color: var(--text-primary);
+    flex: 1;
+  }
+
+  .progress-controls {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .btn-progress {
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-progress-cancel {
+    background: var(--danger-color);
+    color: white;
+  }
+
+  .btn-progress-cancel:hover {
+    background: #b91c1c;
+    transform: translateY(-2px);
+  }
+
+  .btn-progress-close {
+    background: var(--secondary-color);
+    color: white;
+  }
+
+  .btn-progress-close:hover {
+    background: #475569;
+    transform: translateY(-2px);
+  }
+
+  /* 削除モード選択 */
+  .delete-mode-section {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--card-shadow);
+    border-left: 4px solid var(--accent-color);
+  }
+
+  .delete-mode-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .delete-mode-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .delete-mode-option {
+    background: var(--light-bg);
+    border: 2px solid #e2e8f0;
+    border-radius: 15px;
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .delete-mode-option:hover {
+    border-color: var(--accent-color);
+    background: rgba(245, 158, 11, 0.05);
+    transform: translateY(-2px);
+  }
+
+  .delete-mode-option.selected {
+    border-color: var(--accent-color);
+    background: rgba(245, 158, 11, 0.1);
+    transform: translateY(-2px);
+  }
+
+  .delete-mode-option::after {
+    content: '✓';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 25px;
+    height: 25px;
+    background: var(--accent-color);
+    color: white;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.8rem;
+  }
+
+  .delete-mode-option.selected::after {
+    display: flex;
+  }
+
+  .delete-mode-icon {
+    font-size: 2rem;
+    color: var(--accent-color);
+    margin-bottom: 0.5rem;
+  }
+
+  .delete-mode-name {
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .delete-mode-description {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  .delete-mode-warning {
+    background: rgba(220, 38, 38, 0.1);
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    border-radius: 10px;
+    padding: 1rem;
+    margin-top: 1rem;
+    display: none;
+  }
+
+  .delete-mode-warning.show {
+    display: block;
+  }
+
+  .delete-mode-warning-text {
+    color: var(--danger-color);
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* レスポンシブ対応 */
+  @media (max-width: 768px) {
+    .progress-modal-content {
+      padding: 1.5rem;
+    }
+
+    .progress-stats {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .delete-mode-options {
+      grid-template-columns: 1fr;
+    }
+
+    .progress-controls {
+      flex-direction: column;
+    }
+  }
+</style>
 <div class="duplicates-header fade-in-up">
   <div class="duplicates-icon">
     <i class="fas fa-copy"></i>
@@ -615,6 +992,37 @@
     </div>
   </div>
 
+  <!-- 削除モード選択 -->
+  <div class="delete-mode-section fade-in-up">
+    <h5 class="delete-mode-title">
+      <i class="fas fa-trash-alt"></i>
+      削除モードを選択
+    </h5>
+    <div class="delete-mode-options">
+      <div class="delete-mode-option selected" data-mode="move">
+        <div class="delete-mode-icon">
+          <i class="fas fa-folder-open"></i>
+        </div>
+        <div class="delete-mode-name">移動削除（安全）</div>
+        <div class="delete-mode-description">ファイルを削除ディレクトリに移動します。後から復元可能です。</div>
+      </div>
+      
+      <div class="delete-mode-option" data-mode="permanent">
+        <div class="delete-mode-icon">
+          <i class="fas fa-trash"></i>
+        </div>
+        <div class="delete-mode-name">完全削除（危険）</div>
+        <div class="delete-mode-description">ファイルを完全に削除します。復元できません。</div>
+      </div>
+    </div>
+    <div class="delete-mode-warning" id="permanentWarning">
+      <div class="delete-mode-warning-text">
+        <i class="fas fa-exclamation-triangle"></i>
+        注意：完全削除モードではファイルが永続的に削除され、復元できません。
+      </div>
+    </div>
+  </div>
+
   <!-- 一括処理セクション -->
   <div class="bulk-actions fade-in-up">
     <div class="bulk-actions-header">
@@ -622,6 +1030,10 @@
         <i class="fas fa-magic me-2"></i>
         一括重複解決
       </h5>
+      <button class="btn btn-sm btn-info" onclick="showProgress()">
+        <i class="fas fa-chart-line me-1"></i>
+        進捗確認
+      </button>
     </div>
 
     <h6 class="mb-3">保持戦略を選択:</h6>
@@ -706,7 +1118,7 @@
     </div>
   </div>
 
-  <!-- 重複グループ一覧 -->
+  <!-- 重複グループ一覧（前回と同じ） -->
   {% for group in duplicate_groups %}
   <div class="duplicate-group fade-in-up" data-group-hash="{{ group.hash }}">
     <input type="checkbox" class="group-checkbox" id="group-{{ loop.index }}" 
@@ -820,14 +1232,72 @@
   </div>
 {% endif %}
 
-<!-- 進捗オーバーレイ -->
-<div class="progress-overlay" id="progressOverlay">
-  <div class="progress-content">
-    <div class="progress-spinner">
-      <i class="fas fa-spinner"></i>
+<!-- 進捗モーダル -->
+<div class="progress-modal" id="progressModal">
+  <div class="progress-modal-content">
+    <div class="progress-header">
+      <h5 class="progress-title">
+        <i class="fas fa-cogs" id="progressIcon"></i>
+        <span id="progressTaskName">処理中...</span>
+      </h5>
+      <button class="progress-close" onclick="closeProgress()">
+        <i class="fas fa-times"></i>
+      </button>
     </div>
-    <h5 id="progressTitle">処理中...</h5>
-    <p id="progressMessage">お待ちください</p>
+
+    <div class="progress-bar-container">
+      <div class="progress-info">
+        <span class="progress-text" id="progressText">準備中...</span>
+        <span class="progress-percentage" id="progressPercentage">0%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressBar" style="width: 0%;"></div>
+      </div>
+    </div>
+
+    <div class="progress-stats">
+      <div class="progress-stat">
+        <div class="progress-stat-number" id="progressRemoved">0</div>
+        <div class="progress-stat-label">削除済み</div>
+      </div>
+      <div class="progress-stat">
+        <div class="progress-stat-number" id="progressErrors">0</div>
+        <div class="progress-stat-label">エラー</div>
+      </div>
+      <div class="progress-stat">
+        <div class="progress-stat-number" id="progressElapsed">0s</div>
+        <div class="progress-stat-label">経過時間</div>
+      </div>
+    </div>
+
+    <div class="progress-current-file" id="progressCurrentFile" style="display: none;">
+      <div class="progress-current-title">現在の処理</div>
+      <div class="progress-current-detail" id="progressCurrentDetail">-</div>
+    </div>
+
+    <div class="progress-log">
+      <div class="progress-log-title">
+        <i class="fas fa-list-ul"></i>
+        処理ログ
+      </div>
+      <div id="progressLogContent">
+        <div class="progress-log-item">
+          <span class="progress-log-time">--:--</span>
+          <span class="progress-log-message">待機中...</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="progress-controls">
+      <button class="btn-progress btn-progress-cancel" id="progressCancelBtn" onclick="cancelOperation()" style="display: none;">
+        <i class="fas fa-stop"></i>
+        キャンセル
+      </button>
+      <button class="btn-progress btn-progress-close" onclick="closeProgress()">
+        <i class="fas fa-times"></i>
+        閉じる
+      </button>
+    </div>
   </div>
 </div>
 
@@ -835,16 +1305,38 @@
   // グローバル変数
   let groupSelections = {};
   let selectedStrategy = null;
+  let selectedDeleteMode = 'move';
+  let progressUpdateInterval = null;
+
+  // 削除モード選択
+  document.querySelectorAll('.delete-mode-option').forEach(function(option) {
+    option.addEventListener('click', function() {
+      // 他の選択を解除
+      document.querySelectorAll('.delete-mode-option').forEach(function(opt) {
+        opt.classList.remove('selected');
+      });
+      
+      // 現在の選択をマーク
+      this.classList.add('selected');
+      selectedDeleteMode = this.dataset.mode;
+      
+      // 警告表示
+      const warning = document.getElementById('permanentWarning');
+      if (selectedDeleteMode === 'permanent') {
+        warning.classList.add('show');
+      } else {
+        warning.classList.remove('show');
+      }
+    });
+  });
 
   // 戦略選択
   document.querySelectorAll('.strategy-card').forEach(function(card) {
     card.addEventListener('click', function() {
-      // 他の選択を解除
       document.querySelectorAll('.strategy-card').forEach(function(c) {
         c.classList.remove('selected');
       });
       
-      // 現在の選択をマーク
       this.classList.add('selected');
       selectedStrategy = this.dataset.strategy;
       
@@ -852,23 +1344,380 @@
     });
   });
 
-  // 個別選択機能
+  // 進捗表示関数
+  function showProgress() {
+    document.getElementById('progressModal').classList.add('show');
+    startProgressUpdate();
+  }
+
+  function closeProgress() {
+    document.getElementById('progressModal').classList.remove('show');
+    stopProgressUpdate();
+  }
+
+  function startProgressUpdate() {
+    if (progressUpdateInterval) {
+      clearInterval(progressUpdateInterval);
+    }
+    
+    updateProgress(); // 即座に1回実行
+    
+    progressUpdateInterval = setInterval(function() {
+      updateProgress();
+    }, 1000);
+  }
+
+  function stopProgressUpdate() {
+    if (progressUpdateInterval) {
+      clearInterval(progressUpdateInterval);
+      progressUpdateInterval = null;
+    }
+  }
+
+  function updateProgress() {
+    fetch('{{ url_for("get_duplicate_progress") }}')
+      .then(function(response) {
+        return response.json();
+      })
+      .then(function(data) {
+        // アイコンとタイトル更新
+        const icon = document.getElementById('progressIcon');
+        const taskName = document.getElementById('progressTaskName');
+        
+        if (data.status === 'running') {
+          icon.className = 'fas fa-spinner fa-spin';
+          taskName.textContent = data.current_task || '処理中...';
+        } else if (data.status === 'completed') {
+          icon.className = 'fas fa-check-circle';
+          taskName.textContent = '完了';
+        } else if (data.status === 'error') {
+          icon.className = 'fas fa-exclamation-triangle';
+          taskName.textContent = 'エラー';
+        } else {
+          icon.className = 'fas fa-clock';
+          taskName.textContent = '待機中';
+        }
+
+        // 進捗バー更新
+        const percentage = data.total > 0 ? Math.round((data.progress / data.total) * 100) : 0;
+        document.getElementById('progressPercentage').textContent = percentage + '%';
+        document.getElementById('progressText').textContent = data.progress + ' / ' + data.total;
+        
+        const progressBar = document.getElementById('progressBar');
+        progressBar.style.width = percentage + '%';
+        
+        // ステータスに応じてバーの色を変更
+        progressBar.className = 'progress-fill';
+        if (data.status === 'error') {
+          progressBar.classList.add('error');
+        } else if (data.status === 'completed') {
+          progressBar.classList.add('completed');
+        }
+
+        // 統計更新
+        document.getElementById('progressRemoved').textContent = data.removed_count || 0;
+        document.getElementById('progressErrors').textContent = data.error_count || 0;
+        document.getElementById('progressElapsed').textContent = data.elapsed_time ? Math.round(data.elapsed_time) + 's' : '0s';
+
+        // 現在のファイル更新
+        const currentFileDiv = document.getElementById('progressCurrentFile');
+        const currentDetail = document.getElementById('progressCurrentDetail');
+        
+        if (data.current_file && data.status === 'running') {
+          currentFileDiv.style.display = 'block';
+          currentDetail.textContent = data.current_file;
+        } else {
+          currentFileDiv.style.display = 'none';
+        }
+
+        // ログ更新
+        const logContent = document.getElementById('progressLogContent');
+        if (data.details && data.details.length > 0) {
+          logContent.innerHTML = data.details.map(function(detail) {
+            return '<div class="progress-log-item">' +
+                   '<span class="progress-log-time">' + detail.time + '</span>' +
+                   '<span class="progress-log-message">' + detail.message + '</span>' +
+                   '</div>';
+          }).join('');
+        }
+
+        // エラーメッセージ表示
+        if (data.error_message) {
+          console.error('Progress Error:', data.error_message);
+        }
+
+        // キャンセルボタンの表示/非表示
+        const cancelBtn = document.getElementById('progressCancelBtn');
+        if (data.status === 'running') {
+          cancelBtn.style.display = 'inline-flex';
+        } else {
+          cancelBtn.style.display = 'none';
+        }
+
+        // 完了時の自動更新停止
+        if (data.status === 'completed' || data.status === 'error') {
+          setTimeout(function() {
+            stopProgressUpdate();
+          }, 5000); // 5秒後に自動更新停止
+        }
+      })
+      .catch(function(error) {
+        console.error('進捗取得エラー:', error);
+      });
+  }
+
+  function cancelOperation() {
+    if (confirm('現在の処理をキャンセルしますか？（注意：実行中の操作は停止できません）')) {
+      fetch('{{ url_for("cancel_duplicate_operation") }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+      .then(function(response) {
+        return response.json();
+      })
+      .then(function(data) {
+        if (data.success) {
+          updateProgress(); // 即座に状況を更新
+        }
+      })
+      .catch(function(error) {
+        console.error('キャンセル エラー:', error);
+      });
+    }
+  }
+
+  // 一括解決（進捗表示対応版）
+  function bulkResolve() {
+    if (!selectedStrategy) {
+      alert('保持戦略を選択してください。');
+      return;
+    }
+
+    const selectedGroups = [];
+    document.querySelectorAll('.group-checkbox:checked').forEach(function(checkbox) {
+      selectedGroups.push(checkbox.closest('.duplicate-group').dataset.groupHash);
+    });
+
+    if (selectedGroups.length === 0) {
+      alert('処理するグループを選択してください。');
+      return;
+    }
+
+    const strategyNames = {
+      'newest': '最新ファイルを保持',
+      'oldest': '最古ファイルを保持',
+      'largest': '最大サイズを保持',
+      'smallest': '最小サイズを保持',
+      'highest_quality': '最高品質を保持',
+      'lowest_quality': '最低品質を保持'
+    };
+
+    const deleteMode = selectedDeleteMode === 'permanent' ? '完全削除' : '移動削除';
+    const confirmMessage = strategyNames[selectedStrategy] + '戦略で' + selectedGroups.length + 'グループの重複を' + deleteMode + 'しますか？';
+    
+    if (selectedDeleteMode === 'permanent') {
+      const dangerConfirm = '⚠️ 危険：完全削除モードが選択されています。\n\nファイルは永続的に削除され、復元できません。\n\n本当に実行しますか？';
+      if (!confirm(dangerConfirm)) {
+        return;
+      }
+    }
+    
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // 進捗モーダルを表示
+    showProgress();
+
+    fetch('{{ url_for("bulk_resolve_duplicates") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        strategy: selectedStrategy,
+        group_hashes: selectedGroups,
+        delete_permanently: selectedDeleteMode === 'permanent'
+      })
+    })
+    .then(function(response) {
+      return response.json();
+    })
+    .then(function(data) {
+      if (data.success) {
+        if (data.background) {
+          // バックグラウンド処理の場合、進捗モーダルはそのまま表示
+          console.log('バックグラウンド処理開始');
+        } else {
+          alert('✅ ' + data.message);
+          setTimeout(function() {
+            window.location.reload();
+          }, 1000);
+        }
+      } else {
+        closeProgress();
+        alert('❌ ' + data.message);
+      }
+    })
+    .catch(function(error) {
+      closeProgress();
+      console.error('一括解決エラー:', error);
+      alert('処理中にエラーが発生しました。');
+    });
+  }
+
+  // 全自動解決の確認
+  function confirmBulkResolveAll() {
+    const deleteMode = selectedDeleteMode === 'permanent' ? '完全削除' : '移動削除';
+    
+    if (selectedDeleteMode === 'permanent') {
+      const dangerConfirm = '⚠️ 危険：完全削除モードで全ての重複グループを最高品質戦略で一括処理します。\n\nファイルは永続的に削除され、復元できません。\n\n本当に実行しますか？';
+      if (!confirm(dangerConfirm)) {
+        return;
+      }
+    }
+    
+    if (confirm('全ての重複グループを最高品質戦略で' + deleteMode + 'しますか？')) {
+      bulkResolveAll('highest_quality');
+    }
+  }
+
+  // 全自動解決
+  function bulkResolveAll(strategy) {
+    const allGroups = [];
+    document.querySelectorAll('.duplicate-group').forEach(function(group) {
+      allGroups.push(group.dataset.groupHash);
+    });
+
+    showProgress();
+
+    fetch('{{ url_for("bulk_resolve_duplicates") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        strategy: strategy,
+        group_hashes: allGroups,
+        delete_permanently: selectedDeleteMode === 'permanent'
+      })
+    })
+    .then(function(response) {
+      return response.json();
+    })
+    .then(function(data) {
+      if (data.success) {
+        console.log('全自動解決開始');
+      } else {
+        closeProgress();
+        alert('❌ ' + data.message);
+      }
+    })
+    .catch(function(error) {
+      closeProgress();
+      console.error('全自動解決エラー:', error);
+      alert('処理中にエラーが発生しました。');
+    });
+  }
+
+  // 個別選択機能（修正版 - 削除モード対応）
+  function processAllSelections() {
+    const selectedGroups = [];
+    for (const hash in groupSelections) {
+      const selection = groupSelections[hash];
+      if (selection.keep && selection.remove.length > 0) {
+        selectedGroups.push(hash);
+      }
+    }
+    
+    if (selectedGroups.length === 0) {
+      alert('処理する重複グループを選択してください。');
+      return;
+    }
+    
+    let totalToRemove = 0;
+    selectedGroups.forEach(function(hash) {
+      totalToRemove += groupSelections[hash].remove.length;
+    });
+    
+    const deleteMode = selectedDeleteMode === 'permanent' ? '完全削除' : '移動削除';
+    
+    if (selectedDeleteMode === 'permanent') {
+      const dangerConfirm = '⚠️ 危険：完全削除モードが選択されています。\n\n' + totalToRemove + '件のファイルが永続的に削除され、復元できません。\n\n本当に実行しますか？';
+      if (!confirm(dangerConfirm)) {
+        return;
+      }
+    }
+    
+    if (!confirm(selectedGroups.length + '個のグループから' + totalToRemove + '件の重複動画を' + deleteMode + 'します。よろしいですか？')) {
+      return;
+    }
+
+    showProgress();
+    
+    // 各グループを順次処理
+    let processedCount = 0;
+    selectedGroups.forEach(function(hash) {
+      const selection = groupSelections[hash];
+      
+      fetch('{{ url_for("resolve_duplicates") }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          keep_video_id: selection.keep,
+          remove_video_ids: selection.remove,
+          delete_permanently: selectedDeleteMode === 'permanent'
+        })
+      })
+      .then(function(response) {
+        return response.json();
+      })
+      .then(function(data) {
+        processedCount++;
+        if (data.success) {
+          // 処理済みグループを削除
+          const group = document.querySelector('[data-group-hash="' + hash + '"]');
+          group.style.opacity = '0.5';
+          group.style.pointerEvents = 'none';
+          
+          const title = group.querySelector('.group-title');
+          title.innerHTML = '<i class="fas fa-check-circle"></i> 処理完了';
+          title.style.color = 'var(--success-color)';
+        }
+        
+        if (processedCount === selectedGroups.length) {
+          setTimeout(function() {
+            closeProgress();
+            window.location.reload();
+          }, 2000);
+        }
+      })
+      .catch(function(error) {
+        console.error('処理エラー:', error);
+        closeProgress();
+        alert('処理中にエラーが発生しました。');
+      });
+    });
+  }
+
+  // その他の既存関数（selectKeep, selectRemove, etc.）
   function selectKeep(videoId, groupHash) {
     if (!groupSelections[groupHash]) {
       groupSelections[groupHash] = { keep: null, remove: [] };
     }
     
-    // 既存の保持選択をクリア
     const group = document.querySelector('[data-group-hash="' + groupHash + '"]');
     group.querySelectorAll('.video-card').forEach(function(card) {
       card.classList.remove('selected', 'to-remove');
     });
     
-    // 新しい保持選択を設定
     groupSelections[groupHash].keep = videoId;
     groupSelections[groupHash].remove = [];
     
-    // 他の動画を削除対象として自動選択
     group.querySelectorAll('.video-card').forEach(function(card) {
       const cardVideoId = card.getAttribute('data-video-id');
       if (cardVideoId === videoId) {
@@ -887,13 +1736,11 @@
     
     const card = document.querySelector('[data-video-id="' + videoId + '"]');
     if (card.classList.contains('to-remove')) {
-      // 削除選択を解除
       card.classList.remove('to-remove');
       groupSelections[groupHash].remove = groupSelections[groupHash].remove.filter(function(id) {
         return id !== videoId;
       });
     } else {
-      // 削除選択を追加
       card.classList.add('to-remove');
       card.classList.remove('selected');
       if (groupSelections[groupHash].remove.indexOf(videoId) === -1) {
@@ -909,7 +1756,6 @@
     const group = document.querySelector('[data-group-hash="' + groupHash + '"]');
     const videos = group.querySelectorAll('.video-card');
     
-    // 最高品質の動画を見つける
     let bestVideo = null;
     let bestQuality = -1;
     
@@ -938,7 +1784,6 @@
     delete groupSelections[groupHash];
   }
 
-  // グループ選択機能
   function selectAllGroups() {
     document.querySelectorAll('.group-checkbox').forEach(function(checkbox) {
       checkbox.checked = true;
@@ -969,135 +1814,14 @@
     
     if (selectedGroups > 0 && selectedStrategy) {
       bulkBtn.disabled = false;
-      bulkBtn.innerHTML = '<i class="fas fa-magic"></i> ' + selectedGroups + 'グループを一括解決';
+      const deleteMode = selectedDeleteMode === 'permanent' ? '完全削除' : '移動削除';
+      bulkBtn.innerHTML = '<i class="fas fa-magic"></i> ' + selectedGroups + 'グループを' + deleteMode;
     } else {
       bulkBtn.disabled = true;
       bulkBtn.innerHTML = '<i class="fas fa-magic"></i> 選択したグループを一括解決';
     }
   }
 
-  // 進捗表示
-  function showProgress(title, message) {
-    document.getElementById('progressTitle').textContent = title;
-    document.getElementById('progressMessage').textContent = message;
-    document.getElementById('progressOverlay').classList.add('show');
-  }
-
-  function hideProgress() {
-    document.getElementById('progressOverlay').classList.remove('show');
-  }
-
-  // 一括解決
-  function bulkResolve() {
-    if (!selectedStrategy) {
-      alert('保持戦略を選択してください。');
-      return;
-    }
-
-    const selectedGroups = [];
-    document.querySelectorAll('.group-checkbox:checked').forEach(function(checkbox) {
-      selectedGroups.push(checkbox.closest('.duplicate-group').dataset.groupHash);
-    });
-
-    if (selectedGroups.length === 0) {
-      alert('処理するグループを選択してください。');
-      return;
-    }
-
-    const strategyNames = {
-      'newest': '最新ファイルを保持',
-      'oldest': '最古ファイルを保持',
-      'largest': '最大サイズを保持',
-      'smallest': '最小サイズを保持',
-      'highest_quality': '最高品質を保持',
-      'lowest_quality': '最低品質を保持'
-    };
-
-    if (!confirm(strategyNames[selectedStrategy] + '戦略で' + selectedGroups.length + 'グループの重複を解決しますか？')) {
-      return;
-    }
-
-    showProgress('一括解決中...', selectedGroups.length + 'グループを処理しています');
-
-    fetch('{{ url_for("bulk_resolve_duplicates") }}', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        strategy: selectedStrategy,
-        group_hashes: selectedGroups
-      })
-    })
-    .then(function(response) {
-      return response.json();
-    })
-    .then(function(data) {
-      hideProgress();
-      if (data.success) {
-        alert('✅ ' + data.message);
-        setTimeout(function() {
-          window.location.reload();
-        }, 1000);
-      } else {
-        alert('❌ ' + data.message);
-      }
-    })
-    .catch(function(error) {
-      hideProgress();
-      console.error('一括解決エラー:', error);
-      alert('処理中にエラーが発生しました。');
-    });
-  }
-
-  // 全自動解決の確認
-  function confirmBulkResolveAll() {
-    if (confirm('⚠️ 全ての重複グループを最高品質戦略で一括解決しますか？')) {
-      bulkResolveAll('highest_quality');
-    }
-  }
-
-  // 全自動解決
-  function bulkResolveAll(strategy) {
-    const allGroups = [];
-    document.querySelectorAll('.duplicate-group').forEach(function(group) {
-      allGroups.push(group.dataset.groupHash);
-    });
-
-    showProgress('全自動解決中...', '全' + allGroups.length + 'グループを処理しています');
-
-    fetch('{{ url_for("bulk_resolve_duplicates") }}', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        strategy: strategy,
-        group_hashes: allGroups
-      })
-    })
-    .then(function(response) {
-      return response.json();
-    })
-    .then(function(data) {
-      hideProgress();
-      if (data.success) {
-        alert('✅ ' + data.message);
-        setTimeout(function() {
-          window.location.reload();
-        }, 1000);
-      } else {
-        alert('❌ ' + data.message);
-      }
-    })
-    .catch(function(error) {
-      hideProgress();
-      console.error('全自動解決エラー:', error);
-      alert('処理中にエラーが発生しました。');
-    });
-  }
-
-  // プレビュー機能
   function previewBulkAction() {
     if (!selectedStrategy) {
       alert('保持戦略を選択してください。');
@@ -1119,101 +1843,42 @@
       'lowest_quality': '最低品質を保持'
     };
 
-    alert('プレビュー:\n戦略: ' + strategyNames[selectedStrategy] + '\n対象: ' + selectedGroups + 'グループ\n\n各グループで条件に合致するファイルが保持され、残りが削除されます。');
+    const deleteMode = selectedDeleteMode === 'permanent' ? '完全削除' : '移動削除';
+
+    alert('プレビュー:\n戦略: ' + strategyNames[selectedStrategy] + '\n削除モード: ' + deleteMode + '\n対象: ' + selectedGroups + 'グループ\n\n各グループで条件に合致するファイルが保持され、残りが' + deleteMode + 'されます。');
   }
 
-  // 個別処理（既存の機能）
-  function processAllSelections() {
-    const selectedGroups = [];
-    for (const hash in groupSelections) {
-      const selection = groupSelections[hash];
-      if (selection.keep && selection.remove.length > 0) {
-        selectedGroups.push(hash);
-      }
-    }
-    
-    if (selectedGroups.length === 0) {
-      alert('処理する重複グループを選択してください。');
-      return;
-    }
-    
-    let totalToRemove = 0;
-    selectedGroups.forEach(function(hash) {
-      totalToRemove += groupSelections[hash].remove.length;
-    });
-    
-    if (!confirm(selectedGroups.length + '個のグループから' + totalToRemove + '件の重複動画を削除します。よろしいですか？')) {
-      return;
-    }
+  // ページロード時の初期化
+  document.addEventListener('DOMContentLoaded', function() {
+    // 既存のページアニメーション
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
 
-    showProgress('個別処理中...', selectedGroups.length + 'グループを処理しています');
-    
-    // 各グループを順次処理
-    let processedCount = 0;
-    selectedGroups.forEach(function(hash) {
-      const selection = groupSelections[hash];
-      
-      fetch('{{ url_for("resolve_duplicates") }}', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          keep_video_id: selection.keep,
-          remove_video_ids: selection.remove
-        })
-      })
-      .then(function(response) {
-        return response.json();
-      })
-      .then(function(data) {
-        processedCount++;
-        if (data.success) {
-          // 処理済みグループを削除
-          const group = document.querySelector('[data-group-hash="' + hash + '"]');
-          group.style.opacity = '0.5';
-          group.style.pointerEvents = 'none';
-          
-          const title = group.querySelector('.group-title');
-          title.innerHTML = '<i class="fas fa-check-circle"></i> 処理完了';
-          title.style.color = 'var(--success-color)';
+    const observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
         }
-        
-        if (processedCount === selectedGroups.length) {
-          hideProgress();
-          setTimeout(function() {
-            window.location.reload();
-          }, 2000);
-        }
-      })
-      .catch(function(error) {
-        console.error('処理エラー:', error);
-        hideProgress();
-        alert('処理中にエラーが発生しました。');
       });
+    }, observerOptions);
+
+    document.querySelectorAll('.fade-in-up').forEach(function(el) {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(30px)';
+      el.style.transition = 'all 0.6s ease-out';
+      observer.observe(el);
     });
-  }
 
-  // ページロード時のアニメーション
-  const observerOptions = {
-    threshold: 0.1,
-    rootMargin: '0px 0px -50px 0px'
-  };
+    // 進捗状況の自動チェック（ページロード時）
+    updateProgress();
+  });
 
-  const observer = new IntersectionObserver(function(entries) {
-    entries.forEach(function(entry) {
-      if (entry.isIntersecting) {
-        entry.target.style.opacity = '1';
-        entry.target.style.transform = 'translateY(0)';
-      }
-    });
-  }, observerOptions);
-
-  document.querySelectorAll('.fade-in-up').forEach(function(el) {
-    el.style.opacity = '0';
-    el.style.transform = 'translateY(30px)';
-    el.style.transition = 'all 0.6s ease-out';
-    observer.observe(el);
+  // ページを離れる時の処理
+  window.addEventListener('beforeunload', function() {
+    stopProgressUpdate();
   });
 </script>
 
