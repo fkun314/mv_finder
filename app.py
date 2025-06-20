@@ -1073,70 +1073,84 @@ def analysis_status():
 @app.route('/duplicates')
 @login_required
 def duplicates_page():
-    """重複動画の管理ページ"""
+    """重複動画の管理ページ - 改良版"""
     conn = get_db_connection()
 
-    # ハッシュが同じ動画を検索
-    duplicates = conn.execute('''
-        SELECT 
-            va.file_hash,
-            COUNT(*) as count,
-            GROUP_CONCAT(va.video_id) as video_ids,
-            GROUP_CONCAT(va.file_path) as file_paths,
-            GROUP_CONCAT(va.file_size) as file_sizes,
-            GROUP_CONCAT(va.quality_score) as quality_scores,
-            GROUP_CONCAT(vm.filename) as filenames
-        FROM video_analysis va
-        LEFT JOIN video_metadata vm ON va.video_id = vm.video_id
-        WHERE va.file_hash != '' AND va.file_hash IS NOT NULL
-        GROUP BY va.file_hash
-        HAVING COUNT(*) > 1
-        ORDER BY COUNT(*) DESC, va.file_hash
-    ''').fetchall()
+    try:
+        # ハッシュが同じ動画を検索
+        duplicates = conn.execute('''
+            SELECT 
+                va.file_hash,
+                COUNT(*) as count,
+                GROUP_CONCAT(va.video_id) as video_ids,
+                GROUP_CONCAT(va.file_path) as file_paths,
+                GROUP_CONCAT(va.file_size) as file_sizes,
+                GROUP_CONCAT(va.quality_score) as quality_scores,
+                GROUP_CONCAT(vm.filename) as filenames,
+                GROUP_CONCAT(vm.created) as created_dates
+            FROM video_analysis va
+            LEFT JOIN video_metadata vm ON va.video_id = vm.video_id
+            WHERE va.file_hash != '' AND va.file_hash IS NOT NULL
+            GROUP BY va.file_hash
+            HAVING COUNT(*) > 1
+            ORDER BY COUNT(*) DESC, va.file_hash
+        ''').fetchall()
 
-    # 重複グループを整理
-    duplicate_groups = []
-    for dup in duplicates:
-        video_ids = dup['video_ids'].split(',')
-        file_paths = dup['file_paths'].split(',')
-        file_sizes = [int(s) for s in dup['file_sizes'].split(',')]
-        quality_scores = [float(s) for s in dup['quality_scores'].split(',')]
-        filenames = dup['filenames'].split(',')
+        # 重複グループを整理
+        duplicate_groups = []
+        total_duplicates = 0
+        
+        for dup in duplicates:
+            video_ids = dup['video_ids'].split(',')
+            file_paths = dup['file_paths'].split(',')
+            file_sizes = [int(s) for s in dup['file_sizes'].split(',') if s]
+            quality_scores = [float(s) for s in dup['quality_scores'].split(',') if s]
+            filenames = dup['filenames'].split(',')
+            created_dates = [float(d) if d else 0 for d in dup['created_dates'].split(',')]
 
-        group = {
-            'hash': dup['file_hash'],
-            'count': dup['count'],
-            'videos': []
-        }
+            group = {
+                'hash': dup['file_hash'],
+                'count': dup['count'],
+                'videos': []
+            }
 
-        for i in range(len(video_ids)):
-            # サムネイル生成（存在しない場合）
-            thumb_filename = f"{video_ids[i]}.jpg"
-            thumb_path = os.path.join("static", "thumbnails", thumb_filename)
+            for i in range(len(video_ids)):
+                # サムネイル処理
+                thumb_filename = f"{video_ids[i]}.jpg"
+                thumb_path = os.path.join("static", "thumbnails", thumb_filename)
 
-            if thumb_filename not in THUMBNAIL_CACHE and os.path.exists(file_paths[i]):
-                try:
-                    generate_thumbnail(file_paths[i], thumb_path)
-                    THUMBNAIL_CACHE.add(thumb_filename)
-                except Exception as e:
-                    print(f"サムネイル生成エラー ({file_paths[i]}): {e}")
+                if thumb_filename not in THUMBNAIL_CACHE and i < len(file_paths) and os.path.exists(file_paths[i]):
+                    try:
+                        generate_thumbnail(file_paths[i], thumb_path)
+                        THUMBNAIL_CACHE.add(thumb_filename)
+                    except Exception as e:
+                        print(f"サムネイル生成エラー ({file_paths[i]}): {e}")
 
-            group['videos'].append({
-                'video_id': video_ids[i],
-                'file_path': file_paths[i],
-                'filename': filenames[i],
-                'file_size': file_sizes[i],
-                'quality_score': quality_scores[i],
-                'thumb': thumb_filename
-            })
+                group['videos'].append({
+                    'video_id': video_ids[i],
+                    'file_path': file_paths[i] if i < len(file_paths) else '',
+                    'filename': filenames[i] if i < len(filenames) else '',
+                    'file_size': file_sizes[i] if i < len(file_sizes) else 0,
+                    'quality_score': quality_scores[i] if i < len(quality_scores) else 0,
+                    'created': created_dates[i] if i < len(created_dates) else 0,
+                    'thumb': thumb_filename
+                })
 
-        # 品質スコア順でソート（高品質が先頭）
-        group['videos'].sort(key=lambda x: x['quality_score'], reverse=True)
-        duplicate_groups.append(group)
+            # 品質スコア順でソート（高品質が先頭）
+            group['videos'].sort(key=lambda x: x['quality_score'], reverse=True)
+            duplicate_groups.append(group)
+            total_duplicates += dup['count']
 
-    conn.close()
+    except Exception as e:
+        print(f"重複動画取得エラー: {e}")
+        duplicate_groups = []
+        total_duplicates = 0
+    finally:
+        conn.close()
 
-    return render_template('duplicates.html', duplicate_groups=duplicate_groups)
+    return render_template('duplicates.html', 
+                         duplicate_groups=duplicate_groups,
+                         total_duplicates=total_duplicates)
 
 
 @app.template_filter('datetimeformat')
@@ -1179,7 +1193,7 @@ def datetime_format_filter(value, format='%Y-%m-%d %H:%M:%S'):
 @app.route('/duplicates/resolve', methods=['POST'])
 @login_required
 def resolve_duplicates():
-    """重複動画の解決"""
+    """重複動画の解決 - 改良版"""
     data = request.get_json()
     keep_video_id = data.get('keep_video_id')
     remove_video_ids = data.get('remove_video_ids', [])
@@ -1187,39 +1201,243 @@ def resolve_duplicates():
     if not keep_video_id or not remove_video_ids:
         return jsonify({'success': False, 'message': '無効なパラメータです'})
 
+    # 削除対象の動画情報を取得
+    videos = get_video_list()
+    video_dict = {v['id']: v for v in videos}
+
+    # 保持する動画が存在するか確認
+    if keep_video_id not in video_dict:
+        return jsonify({'success': False, 'message': '保持する動画が見つかりません'})
+
+    removed_count = 0
+    error_messages = []
+
+    # DB_LOCKを使用してトランザクション処理
+    with DB_LOCK:
+        conn = get_db_connection()
+        try:
+            # トランザクション開始
+            conn.execute('BEGIN')
+            
+            for video_id in remove_video_ids:
+                if video_id in video_dict and video_id != keep_video_id:
+                    video = video_dict[video_id]
+                    
+                    try:
+                        # 設定に基づいてパスを決定
+                        if os.name == 'nt':  # Windows
+                            remove_dir = get_platform_path(config['paths']['remove_directory_windows'])
+                        else:  # macOS/Linux
+                            remove_dir = get_platform_path(config['paths']['remove_directory_unix'])
+
+                        os.makedirs(remove_dir, exist_ok=True)
+                        dest_path = os.path.join(remove_dir, video['filename'])
+
+                        # ファイルが存在するか確認
+                        if not os.path.exists(video['full_path']):
+                            error_messages.append(f"ファイルが見つかりません: {video['filename']}")
+                            continue
+
+                        # 同名ファイルがある場合は一意な名前を生成
+                        if os.path.exists(dest_path):
+                            base, ext = os.path.splitext(video['filename'])
+                            counter = 1
+                            while os.path.exists(dest_path):
+                                dest_path = os.path.join(remove_dir, f"{base}_{counter}{ext}")
+                                counter += 1
+
+                        # ファイルを移動
+                        shutil.move(video['full_path'], dest_path)
+                        
+                        # データベースからも削除
+                        conn.execute('DELETE FROM video_metadata WHERE video_id = ?', (video_id,))
+                        conn.execute('DELETE FROM video_data WHERE video_id = ?', (video_id,))
+                        conn.execute('DELETE FROM video_analysis WHERE video_id = ?', (video_id,))
+                        conn.execute('DELETE FROM view_history WHERE video_id = ?', (video_id,))
+                        conn.execute('DELETE FROM user_favorites WHERE video_id = ?', (video_id,))
+
+                        # サムネイルファイルも削除
+                        thumb_filename = f"{video_id}.jpg"
+                        thumb_path = os.path.join("static", "thumbnails", thumb_filename)
+                        if os.path.exists(thumb_path):
+                            os.remove(thumb_path)
+                            # キャッシュからも削除
+                            THUMBNAIL_CACHE.discard(thumb_filename)
+
+                        # シーンサムネイルも削除
+                        scenes_dir = os.path.join("static", "scenes")
+                        for i in range(config['analysis']['scene_thumbnails_count']):
+                            scene_file = os.path.join(scenes_dir, f"{video_id}_scene_{i}.jpg")
+                            if os.path.exists(scene_file):
+                                os.remove(scene_file)
+
+                        removed_count += 1
+                        print(f"重複動画削除完了: {video['filename']} -> {dest_path}")
+                        
+                    except Exception as e:
+                        error_messages.append(f"{video['filename']}: {str(e)}")
+                        print(f"重複動画削除エラー ({video['filename']}): {e}")
+
+            # トランザクションをコミット
+            conn.commit()
+            
+        except Exception as e:
+            # エラーが発生した場合はロールバック
+            conn.rollback()
+            print(f"重複動画削除でトランザクションエラー: {e}")
+            return jsonify({
+                'success': False,
+                'message': f'データベース処理でエラーが発生しました: {str(e)}'
+            })
+        finally:
+            conn.close()
+
+    # 結果メッセージの作成
+    message = f'{removed_count}件の重複動画を削除しました'
+    if error_messages:
+        message += f'。エラー: {"; ".join(error_messages[:3])}'  # 最初の3つのエラーのみ表示
+        if len(error_messages) > 3:
+            message += f'...他{len(error_messages) - 3}件'
+
+    return jsonify({
+        'success': True,
+        'message': message,
+        'removed_count': removed_count,
+        'error_count': len(error_messages)
+    })
+
+@app.route('/duplicates/bulk_resolve', methods=['POST'])
+@login_required
+def bulk_resolve_duplicates():
+    """一括重複解決 - 新機能"""
+    data = request.get_json()
+    strategy = data.get('strategy')  # 'newest', 'oldest', 'largest', 'smallest', 'highest_quality', 'lowest_quality'
+    group_hashes = data.get('group_hashes', [])
+
+    if not strategy or not group_hashes:
+        return jsonify({'success': False, 'message': '無効なパラメータです'})
+
+    # 重複グループの取得
+    conn = get_db_connection()
     try:
-        # 削除対象の動画情報を取得
-        videos = get_video_list()
-        video_dict = {v['id']: v for v in videos}
-
-        removed_count = 0
-        for video_id in remove_video_ids:
-            if video_id in video_dict and video_id != keep_video_id:
-                video = video_dict[video_id]
-
-                # ファイルを削除ディレクトリに移動
-                if os.name == 'nt':  # Windows
-                    remove_dir = "D:\\remove"
-                else:  # macOS/Linux
-                    remove_dir = os.path.expanduser("~/remove")
-
-                os.makedirs(remove_dir, exist_ok=True)
-                dest_path = os.path.join(remove_dir, video['filename'])
-
-                if os.path.exists(video['full_path']):
-                    shutil.move(video['full_path'], dest_path)
-                    removed_count += 1
-
-        return jsonify({
-            'success': True,
-            'message': f'{removed_count}件の重複動画を削除しました'
-        })
-
+        # 指定されたハッシュの重複グループを取得
+        placeholders = ','.join(['?' for _ in group_hashes])
+        duplicates = conn.execute(f'''
+            SELECT 
+                va.file_hash,
+                va.video_id,
+                va.file_path,
+                va.file_size,
+                va.quality_score,
+                vm.filename,
+                vm.created
+            FROM video_analysis va
+            LEFT JOIN video_metadata vm ON va.video_id = vm.video_id
+            WHERE va.file_hash IN ({placeholders}) AND va.file_hash != '' AND va.file_hash IS NOT NULL
+            ORDER BY va.file_hash, vm.created
+        ''', group_hashes).fetchall()
+        
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'エラーが発生しました: {str(e)}'
-        })
+        conn.close()
+        return jsonify({'success': False, 'message': f'データベースエラー: {str(e)}'})
+    finally:
+        conn.close()
+
+    if not duplicates:
+        return jsonify({'success': False, 'message': '重複動画が見つかりません'})
+
+    # ハッシュ別にグループ化
+    groups = {}
+    for dup in duplicates:
+        hash_value = dup['file_hash']
+        if hash_value not in groups:
+            groups[hash_value] = []
+        groups[hash_value].append(dict(dup))
+
+    total_removed = 0
+    total_kept = 0
+    error_messages = []
+
+    # 各グループを処理
+    for hash_value, videos in groups.items():
+        if len(videos) < 2:
+            continue  # 重複じゃない
+
+        try:
+            # 戦略に応じて保持する動画を決定
+            keep_video = None
+            
+            if strategy == 'newest':
+                keep_video = max(videos, key=lambda x: x['created'] or 0)
+            elif strategy == 'oldest':
+                keep_video = min(videos, key=lambda x: x['created'] or float('inf'))
+            elif strategy == 'largest':
+                keep_video = max(videos, key=lambda x: x['file_size'] or 0)
+            elif strategy == 'smallest':
+                keep_video = min(videos, key=lambda x: x['file_size'] or float('inf'))
+            elif strategy == 'highest_quality':
+                keep_video = max(videos, key=lambda x: x['quality_score'] or 0)
+            elif strategy == 'lowest_quality':
+                keep_video = min(videos, key=lambda x: x['quality_score'] or float('inf'))
+            else:
+                error_messages.append(f"不明な戦略: {strategy}")
+                continue
+
+            if not keep_video:
+                error_messages.append(f"保持する動画を決定できませんでした (hash: {hash_value[:8]}...)")
+                continue
+
+            # 削除対象を決定
+            remove_videos = [v for v in videos if v['video_id'] != keep_video['video_id']]
+            
+            if not remove_videos:
+                continue
+
+            # 削除処理を実行
+            result_data = {
+                'keep_video_id': keep_video['video_id'],
+                'remove_video_ids': [v['video_id'] for v in remove_videos]
+            }
+
+            # 既存の削除機能を再利用
+            with app.test_request_context(json=result_data):
+                result = resolve_duplicates()
+                result_json = result.get_json()
+                
+                if result_json.get('success'):
+                    total_removed += result_json.get('removed_count', 0)
+                    total_kept += 1
+                else:
+                    error_messages.append(f"削除失敗 (hash: {hash_value[:8]}...): {result_json.get('message', '不明なエラー')}")
+
+        except Exception as e:
+            error_messages.append(f"グループ処理エラー (hash: {hash_value[:8]}...): {str(e)}")
+            print(f"一括解決エラー: {e}")
+
+    # 結果メッセージの作成
+    strategy_names = {
+        'newest': '最新ファイルを保持',
+        'oldest': '最古ファイルを保持', 
+        'largest': '最大サイズを保持',
+        'smallest': '最小サイズを保持',
+        'highest_quality': '最高品質を保持',
+        'lowest_quality': '最低品質を保持'
+    }
+
+    message = f'{strategy_names.get(strategy, strategy)}戦略で、{total_kept}グループから{total_removed}件の重複動画を削除しました'
+    
+    if error_messages:
+        message += f'。エラー: {len(error_messages)}件'
+
+    return jsonify({
+        'success': True,
+        'message': message,
+        'total_removed': total_removed,
+        'total_kept': total_kept,
+        'error_count': len(error_messages),
+        'errors': error_messages[:5] if error_messages else []  # 最初の5つのエラーのみ
+    })
+
 
 
 @app.route('/video/<video_id>/analysis')

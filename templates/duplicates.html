@@ -18,6 +18,174 @@
     margin-bottom: 1rem;
   }
 
+  .bulk-actions {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--card-shadow);
+    border-left: 4px solid var(--primary-color);
+  }
+
+  .bulk-actions-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .strategy-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .strategy-card {
+    background: var(--light-bg);
+    border: 2px solid #e2e8f0;
+    border-radius: 15px;
+    padding: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .strategy-card:hover {
+    border-color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.05);
+    transform: translateY(-2px);
+  }
+
+  .strategy-card.selected {
+    border-color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.1);
+    transform: translateY(-2px);
+  }
+
+  .strategy-card::after {
+    content: '✓';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 25px;
+    height: 25px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.8rem;
+  }
+
+  .strategy-card.selected::after {
+    display: flex;
+  }
+
+  .strategy-icon {
+    font-size: 2rem;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+  }
+
+  .strategy-title {
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .strategy-description {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  .bulk-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn-bulk {
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-bulk-primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    color: white;
+  }
+
+  .btn-bulk-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1d4ed8 0%, var(--primary-color) 100%);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .btn-bulk-primary:disabled {
+    background: var(--secondary-color);
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-bulk-warning {
+    background: linear-gradient(135deg, var(--accent-color) 0%, #fbbf24 100%);
+    color: white;
+  }
+
+  .btn-bulk-warning:hover {
+    background: linear-gradient(135deg, #d97706 0%, var(--accent-color) 100%);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .btn-bulk-danger {
+    background: linear-gradient(135deg, var(--danger-color) 0%, #ef4444 100%);
+    color: white;
+  }
+
+  .btn-bulk-danger:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, var(--danger-color) 100%);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .selection-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .btn-select {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: 1px solid #e2e8f0;
+    background: white;
+    cursor: pointer;
+  }
+
+  .btn-select:hover {
+    border-color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.1);
+  }
+
   .duplicate-group {
     background: white;
     border-radius: 20px;
@@ -25,6 +193,23 @@
     margin-bottom: 2rem;
     box-shadow: var(--card-shadow);
     border-left: 4px solid var(--danger-color);
+    position: relative;
+  }
+
+  .group-checkbox {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 2px solid var(--primary-color);
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .group-checkbox:checked {
+    background: var(--primary-color);
   }
 
   .group-header {
@@ -34,6 +219,7 @@
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
     border-bottom: 2px solid #e2e8f0;
+    margin-left: 2rem;
   }
 
   .group-title {
@@ -58,6 +244,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 1rem;
+    margin-left: 2rem;
   }
 
   .video-card {
@@ -220,6 +407,7 @@
     margin-top: 1.5rem;
     padding-top: 1rem;
     border-top: 1px solid #e2e8f0;
+    margin-left: 2rem;
   }
 
   .btn-group-action {
@@ -321,18 +509,77 @@
     line-height: 1.6;
   }
 
+  .progress-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+
+  .progress-overlay.show {
+    display: flex;
+  }
+
+  .progress-content {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+  }
+
+  .progress-spinner {
+    font-size: 3rem;
+    color: var(--primary-color);
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
   /* レスポンシブ対応 */
   @media (max-width: 768px) {
     .videos-grid {
       grid-template-columns: 1fr;
+      margin-left: 0;
+    }
+
+    .group-header {
+      margin-left: 0;
     }
 
     .group-actions {
       flex-direction: column;
+      margin-left: 0;
     }
 
     .summary-stats {
       grid-template-columns: repeat(2, 1fr);
+    }
+
+    .strategy-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .bulk-controls {
+      flex-direction: column;
+    }
+
+    .group-checkbox {
+      position: relative;
+      top: auto;
+      left: auto;
+      margin-bottom: 1rem;
     }
   }
 </style>
@@ -358,19 +605,113 @@
         <div class="summary-label">重複グループ</div>
       </div>
       <div class="summary-stat">
-        <div class="summary-number">{{ duplicate_groups|sum(attribute='count') }}</div>
+        <div class="summary-number">{{ total_duplicates or (duplicate_groups|sum(attribute='count')) }}</div>
         <div class="summary-label">重複ファイル数</div>
       </div>
       <div class="summary-stat">
-        <div class="summary-number">{{ duplicate_groups|sum(attribute='count') - duplicate_groups|length }}</div>
+        <div class="summary-number">{{ (total_duplicates or (duplicate_groups|sum(attribute='count'))) - duplicate_groups|length }}</div>
         <div class="summary-label">削除可能数</div>
       </div>
+    </div>
+  </div>
+
+  <!-- 一括処理セクション -->
+  <div class="bulk-actions fade-in-up">
+    <div class="bulk-actions-header">
+      <h5 class="mb-0">
+        <i class="fas fa-magic me-2"></i>
+        一括重複解決
+      </h5>
+    </div>
+
+    <h6 class="mb-3">保持戦略を選択:</h6>
+    <div class="strategy-grid">
+      <div class="strategy-card" data-strategy="newest">
+        <div class="strategy-icon">
+          <i class="fas fa-clock"></i>
+        </div>
+        <div class="strategy-title">最新ファイル保持</div>
+        <div class="strategy-description">作成日が最も新しいファイルを保持</div>
+      </div>
+      
+      <div class="strategy-card" data-strategy="oldest">
+        <div class="strategy-icon">
+          <i class="fas fa-history"></i>
+        </div>
+        <div class="strategy-title">最古ファイル保持</div>
+        <div class="strategy-description">作成日が最も古いファイルを保持</div>
+      </div>
+      
+      <div class="strategy-card" data-strategy="largest">
+        <div class="strategy-icon">
+          <i class="fas fa-expand-arrows-alt"></i>
+        </div>
+        <div class="strategy-title">最大サイズ保持</div>
+        <div class="strategy-description">ファイルサイズが最大のものを保持</div>
+      </div>
+      
+      <div class="strategy-card" data-strategy="smallest">
+        <div class="strategy-icon">
+          <i class="fas fa-compress-arrows-alt"></i>
+        </div>
+        <div class="strategy-title">最小サイズ保持</div>
+        <div class="strategy-description">ファイルサイズが最小のものを保持</div>
+      </div>
+      
+      <div class="strategy-card" data-strategy="highest_quality">
+        <div class="strategy-icon">
+          <i class="fas fa-star"></i>
+        </div>
+        <div class="strategy-title">最高品質保持</div>
+        <div class="strategy-description">品質スコアが最高のものを保持</div>
+      </div>
+      
+      <div class="strategy-card" data-strategy="lowest_quality">
+        <div class="strategy-icon">
+          <i class="fas fa-star-half-alt"></i>
+        </div>
+        <div class="strategy-title">最低品質保持</div>
+        <div class="strategy-description">品質スコアが最低のものを保持</div>
+      </div>
+    </div>
+
+    <div class="selection-controls">
+      <button class="btn-select" onclick="selectAllGroups()">
+        <i class="fas fa-check-square me-1"></i>
+        全選択
+      </button>
+      <button class="btn-select" onclick="selectNoneGroups()">
+        <i class="fas fa-square me-1"></i>
+        選択解除
+      </button>
+      <button class="btn-select" onclick="selectLargeGroups()">
+        <i class="fas fa-layer-group me-1"></i>
+        大グループのみ選択 (3件以上)
+      </button>
+    </div>
+
+    <div class="bulk-controls">
+      <button class="btn-bulk btn-bulk-primary" id="bulkResolveBtn" onclick="bulkResolve()" disabled>
+        <i class="fas fa-magic"></i>
+        選択したグループを一括解決
+      </button>
+      <button class="btn-bulk btn-bulk-warning" onclick="previewBulkAction()">
+        <i class="fas fa-eye"></i>
+        プレビュー
+      </button>
+      <button class="btn-bulk btn-bulk-danger" onclick="confirmBulkResolveAll()">
+        <i class="fas fa-bolt"></i>
+        全自動解決
+      </button>
     </div>
   </div>
 
   <!-- 重複グループ一覧 -->
   {% for group in duplicate_groups %}
   <div class="duplicate-group fade-in-up" data-group-hash="{{ group.hash }}">
+    <input type="checkbox" class="group-checkbox" id="group-{{ loop.index }}" 
+           onchange="updateBulkButton()">
+    
     <div class="group-header">
       <h5 class="group-title">
         <i class="fas fa-layer-group"></i>
@@ -390,7 +731,8 @@
         {% endif %}
         
         <img src="{{ url_for('static', filename='thumbnails/' ~ video.thumb) }}" 
-             alt="{{ video.filename }}" class="video-thumbnail" loading="lazy">
+             alt="{{ video.filename }}" class="video-thumbnail" loading="lazy"
+             onerror="this.src='data:image/svg+xml,<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;150&quot; height=&quot;150&quot; viewBox=&quot;0 0 150 150&quot;><rect width=&quot;150&quot; height=&quot;150&quot; fill=&quot;%23f3f4f6&quot;/><text x=&quot;75&quot; y=&quot;75&quot; text-anchor=&quot;middle&quot; dy=&quot;.3em&quot; fill=&quot;%236b7280&quot; font-family=&quot;sans-serif&quot; font-size=&quot;14&quot;>No Image</text></svg>';">
         
         <div class="video-info">
           <div class="video-filename">{{ video.filename }}</div>
@@ -409,6 +751,10 @@
             <div class="detail-row">
               <span>ファイルサイズ:</span>
               <span>{{ "%.1f"|format(video.file_size / 1024 / 1024) }} MB</span>
+            </div>
+            <div class="detail-row">
+              <span>作成日:</span>
+              <span>{{ video.created | datetimeformat('%m/%d %H:%M') if video.created else '不明' }}</span>
             </div>
             <div class="detail-row">
               <span>パス:</span>
@@ -448,11 +794,11 @@
   </div>
   {% endfor %}
 
-  <!-- 一括処理ボタン -->
+  <!-- 個別処理ボタン -->
   <div class="text-center fade-in-up">
     <button class="btn-group-action btn-auto-resolve" onclick="processAllSelections()" style="font-size: 1.1rem; padding: 1rem 2rem;">
       <i class="fas fa-cogs"></i>
-      選択された重複を一括処理
+      選択された重複を個別処理
     </button>
   </div>
 
@@ -474,18 +820,47 @@
   </div>
 {% endif %}
 
-<script>
-  // 選択状態を管理するオブジェクト
-  const groupSelections = {};
+<!-- 進捗オーバーレイ -->
+<div class="progress-overlay" id="progressOverlay">
+  <div class="progress-content">
+    <div class="progress-spinner">
+      <i class="fas fa-spinner"></i>
+    </div>
+    <h5 id="progressTitle">処理中...</h5>
+    <p id="progressMessage">お待ちください</p>
+  </div>
+</div>
 
+<script>
+  // グローバル変数
+  let groupSelections = {};
+  let selectedStrategy = null;
+
+  // 戦略選択
+  document.querySelectorAll('.strategy-card').forEach(function(card) {
+    card.addEventListener('click', function() {
+      // 他の選択を解除
+      document.querySelectorAll('.strategy-card').forEach(function(c) {
+        c.classList.remove('selected');
+      });
+      
+      // 現在の選択をマーク
+      this.classList.add('selected');
+      selectedStrategy = this.dataset.strategy;
+      
+      updateBulkButton();
+    });
+  });
+
+  // 個別選択機能
   function selectKeep(videoId, groupHash) {
     if (!groupSelections[groupHash]) {
       groupSelections[groupHash] = { keep: null, remove: [] };
     }
     
     // 既存の保持選択をクリア
-    const group = document.querySelector(`[data-group-hash="${groupHash}"]`);
-    group.querySelectorAll('.video-card').forEach(card => {
+    const group = document.querySelector('[data-group-hash="' + groupHash + '"]');
+    group.querySelectorAll('.video-card').forEach(function(card) {
       card.classList.remove('selected', 'to-remove');
     });
     
@@ -494,7 +869,7 @@
     groupSelections[groupHash].remove = [];
     
     // 他の動画を削除対象として自動選択
-    group.querySelectorAll('.video-card').forEach(card => {
+    group.querySelectorAll('.video-card').forEach(function(card) {
       const cardVideoId = card.getAttribute('data-video-id');
       if (cardVideoId === videoId) {
         card.classList.add('selected');
@@ -510,16 +885,18 @@
       groupSelections[groupHash] = { keep: null, remove: [] };
     }
     
-    const card = document.querySelector(`[data-video-id="${videoId}"]`);
+    const card = document.querySelector('[data-video-id="' + videoId + '"]');
     if (card.classList.contains('to-remove')) {
       // 削除選択を解除
       card.classList.remove('to-remove');
-      groupSelections[groupHash].remove = groupSelections[groupHash].remove.filter(id => id !== videoId);
+      groupSelections[groupHash].remove = groupSelections[groupHash].remove.filter(function(id) {
+        return id !== videoId;
+      });
     } else {
       // 削除選択を追加
       card.classList.add('to-remove');
       card.classList.remove('selected');
-      if (!groupSelections[groupHash].remove.includes(videoId)) {
+      if (groupSelections[groupHash].remove.indexOf(videoId) === -1) {
         groupSelections[groupHash].remove.push(videoId);
       }
       if (groupSelections[groupHash].keep === videoId) {
@@ -529,14 +906,14 @@
   }
 
   function autoResolveGroup(groupHash) {
-    const group = document.querySelector(`[data-group-hash="${groupHash}"]`);
+    const group = document.querySelector('[data-group-hash="' + groupHash + '"]');
     const videos = group.querySelectorAll('.video-card');
     
     // 最高品質の動画を見つける
     let bestVideo = null;
     let bestQuality = -1;
     
-    videos.forEach(card => {
+    videos.forEach(function(card) {
       const videoId = card.getAttribute('data-video-id');
       const qualityElement = card.querySelector('.quality-score');
       if (qualityElement) {
@@ -554,35 +931,226 @@
   }
 
   function resetGroup(groupHash) {
-    const group = document.querySelector(`[data-group-hash="${groupHash}"]`);
-    group.querySelectorAll('.video-card').forEach(card => {
+    const group = document.querySelector('[data-group-hash="' + groupHash + '"]');
+    group.querySelectorAll('.video-card').forEach(function(card) {
       card.classList.remove('selected', 'to-remove');
     });
     delete groupSelections[groupHash];
   }
 
-  function processAllSelections() {
-    const selectedGroups = Object.keys(groupSelections).filter(hash => {
-      const selection = groupSelections[hash];
-      return selection.keep && selection.remove.length > 0;
+  // グループ選択機能
+  function selectAllGroups() {
+    document.querySelectorAll('.group-checkbox').forEach(function(checkbox) {
+      checkbox.checked = true;
     });
+    updateBulkButton();
+  }
+
+  function selectNoneGroups() {
+    document.querySelectorAll('.group-checkbox').forEach(function(checkbox) {
+      checkbox.checked = false;
+    });
+    updateBulkButton();
+  }
+
+  function selectLargeGroups() {
+    document.querySelectorAll('.group-checkbox').forEach(function(checkbox) {
+      const group = checkbox.closest('.duplicate-group');
+      const countElement = group.querySelector('.duplicate-count');
+      const count = parseInt(countElement.textContent);
+      checkbox.checked = count >= 3;
+    });
+    updateBulkButton();
+  }
+
+  function updateBulkButton() {
+    const selectedGroups = document.querySelectorAll('.group-checkbox:checked').length;
+    const bulkBtn = document.getElementById('bulkResolveBtn');
+    
+    if (selectedGroups > 0 && selectedStrategy) {
+      bulkBtn.disabled = false;
+      bulkBtn.innerHTML = '<i class="fas fa-magic"></i> ' + selectedGroups + 'グループを一括解決';
+    } else {
+      bulkBtn.disabled = true;
+      bulkBtn.innerHTML = '<i class="fas fa-magic"></i> 選択したグループを一括解決';
+    }
+  }
+
+  // 進捗表示
+  function showProgress(title, message) {
+    document.getElementById('progressTitle').textContent = title;
+    document.getElementById('progressMessage').textContent = message;
+    document.getElementById('progressOverlay').classList.add('show');
+  }
+
+  function hideProgress() {
+    document.getElementById('progressOverlay').classList.remove('show');
+  }
+
+  // 一括解決
+  function bulkResolve() {
+    if (!selectedStrategy) {
+      alert('保持戦略を選択してください。');
+      return;
+    }
+
+    const selectedGroups = [];
+    document.querySelectorAll('.group-checkbox:checked').forEach(function(checkbox) {
+      selectedGroups.push(checkbox.closest('.duplicate-group').dataset.groupHash);
+    });
+
+    if (selectedGroups.length === 0) {
+      alert('処理するグループを選択してください。');
+      return;
+    }
+
+    const strategyNames = {
+      'newest': '最新ファイルを保持',
+      'oldest': '最古ファイルを保持',
+      'largest': '最大サイズを保持',
+      'smallest': '最小サイズを保持',
+      'highest_quality': '最高品質を保持',
+      'lowest_quality': '最低品質を保持'
+    };
+
+    if (!confirm(strategyNames[selectedStrategy] + '戦略で' + selectedGroups.length + 'グループの重複を解決しますか？')) {
+      return;
+    }
+
+    showProgress('一括解決中...', selectedGroups.length + 'グループを処理しています');
+
+    fetch('{{ url_for("bulk_resolve_duplicates") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        strategy: selectedStrategy,
+        group_hashes: selectedGroups
+      })
+    })
+    .then(function(response) {
+      return response.json();
+    })
+    .then(function(data) {
+      hideProgress();
+      if (data.success) {
+        alert('✅ ' + data.message);
+        setTimeout(function() {
+          window.location.reload();
+        }, 1000);
+      } else {
+        alert('❌ ' + data.message);
+      }
+    })
+    .catch(function(error) {
+      hideProgress();
+      console.error('一括解決エラー:', error);
+      alert('処理中にエラーが発生しました。');
+    });
+  }
+
+  // 全自動解決の確認
+  function confirmBulkResolveAll() {
+    if (confirm('⚠️ 全ての重複グループを最高品質戦略で一括解決しますか？')) {
+      bulkResolveAll('highest_quality');
+    }
+  }
+
+  // 全自動解決
+  function bulkResolveAll(strategy) {
+    const allGroups = [];
+    document.querySelectorAll('.duplicate-group').forEach(function(group) {
+      allGroups.push(group.dataset.groupHash);
+    });
+
+    showProgress('全自動解決中...', '全' + allGroups.length + 'グループを処理しています');
+
+    fetch('{{ url_for("bulk_resolve_duplicates") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        strategy: strategy,
+        group_hashes: allGroups
+      })
+    })
+    .then(function(response) {
+      return response.json();
+    })
+    .then(function(data) {
+      hideProgress();
+      if (data.success) {
+        alert('✅ ' + data.message);
+        setTimeout(function() {
+          window.location.reload();
+        }, 1000);
+      } else {
+        alert('❌ ' + data.message);
+      }
+    })
+    .catch(function(error) {
+      hideProgress();
+      console.error('全自動解決エラー:', error);
+      alert('処理中にエラーが発生しました。');
+    });
+  }
+
+  // プレビュー機能
+  function previewBulkAction() {
+    if (!selectedStrategy) {
+      alert('保持戦略を選択してください。');
+      return;
+    }
+
+    const selectedGroups = document.querySelectorAll('.group-checkbox:checked').length;
+    if (selectedGroups === 0) {
+      alert('プレビューするグループを選択してください。');
+      return;
+    }
+
+    const strategyNames = {
+      'newest': '最新ファイルを保持',
+      'oldest': '最古ファイルを保持',
+      'largest': '最大サイズを保持',
+      'smallest': '最小サイズを保持',
+      'highest_quality': '最高品質を保持',
+      'lowest_quality': '最低品質を保持'
+    };
+
+    alert('プレビュー:\n戦略: ' + strategyNames[selectedStrategy] + '\n対象: ' + selectedGroups + 'グループ\n\n各グループで条件に合致するファイルが保持され、残りが削除されます。');
+  }
+
+  // 個別処理（既存の機能）
+  function processAllSelections() {
+    const selectedGroups = [];
+    for (const hash in groupSelections) {
+      const selection = groupSelections[hash];
+      if (selection.keep && selection.remove.length > 0) {
+        selectedGroups.push(hash);
+      }
+    }
     
     if (selectedGroups.length === 0) {
       alert('処理する重複グループを選択してください。');
       return;
     }
     
-    const totalToRemove = selectedGroups.reduce((total, hash) => {
-      return total + groupSelections[hash].remove.length;
-    }, 0);
+    let totalToRemove = 0;
+    selectedGroups.forEach(function(hash) {
+      totalToRemove += groupSelections[hash].remove.length;
+    });
     
-    if (!confirm(`${selectedGroups.length}個のグループから${totalToRemove}件の重複動画を削除します。よろしいですか？`)) {
+    if (!confirm(selectedGroups.length + '個のグループから' + totalToRemove + '件の重複動画を削除します。よろしいですか？')) {
       return;
     }
+
+    showProgress('個別処理中...', selectedGroups.length + 'グループを処理しています');
     
     // 各グループを順次処理
     let processedCount = 0;
-    selectedGroups.forEach(hash => {
+    selectedGroups.forEach(function(hash) {
       const selection = groupSelections[hash];
       
       fetch('{{ url_for("resolve_duplicates") }}', {
@@ -595,12 +1163,14 @@
           remove_video_ids: selection.remove
         })
       })
-      .then(response => response.json())
-      .then(data => {
+      .then(function(response) {
+        return response.json();
+      })
+      .then(function(data) {
         processedCount++;
         if (data.success) {
           // 処理済みグループを削除
-          const group = document.querySelector(`[data-group-hash="${hash}"]`);
+          const group = document.querySelector('[data-group-hash="' + hash + '"]');
           group.style.opacity = '0.5';
           group.style.pointerEvents = 'none';
           
@@ -610,13 +1180,15 @@
         }
         
         if (processedCount === selectedGroups.length) {
-          setTimeout(() => {
+          hideProgress();
+          setTimeout(function() {
             window.location.reload();
           }, 2000);
         }
       })
-      .catch(error => {
+      .catch(function(error) {
         console.error('処理エラー:', error);
+        hideProgress();
         alert('処理中にエラーが発生しました。');
       });
     });
@@ -628,8 +1200,8 @@
     rootMargin: '0px 0px -50px 0px'
   };
 
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
+  const observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
       if (entry.isIntersecting) {
         entry.target.style.opacity = '1';
         entry.target.style.transform = 'translateY(0)';
@@ -637,7 +1209,7 @@
     });
   }, observerOptions);
 
-  document.querySelectorAll('.fade-in-up').forEach(el => {
+  document.querySelectorAll('.fade-in-up').forEach(function(el) {
     el.style.opacity = '0';
     el.style.transform = 'translateY(30px)';
     el.style.transition = 'all 0.6s ease-out';
